@@ -95,10 +95,14 @@ async function fetchAllPrices(apiKey) {
   Object.keys(SHOPPING_LIST).forEach(i => itemSet.add(i));
   SPECIAL_ITEMS.forEach(i => itemSet.add(i));
 
-  // 순차 조회 (동시 요청 시 Nexon API 차단 방지)
+  // 5개씩 묶어서 병렬 조회 (속도 + 안정성 균형)
+  const items = [...itemSet];
   const price_map = {};
-  for (const item of itemSet) {
-    price_map[item] = await fetchPrice(item, apiKey);
+  const chunkSize = 5;
+  for (let i = 0; i < items.length; i += chunkSize) {
+    const chunk = items.slice(i, i + chunkSize);
+    const results = await Promise.all(chunk.map(async item => [item, await fetchPrice(item, apiKey)]));
+    results.forEach(([item, price]) => { price_map[item] = price; });
   }
   return price_map;
 }
@@ -661,7 +665,7 @@ export default {
 
     // 메인 페이지 — 서버사이드에서 모든 시세 조회 후 HTML 반환
     const prices = await fetchAllPrices(apiKey);
-    const now = new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    const now = new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "Asia/Seoul" });
     const html = buildPage(prices, now);
 
     return new Response(html, {
