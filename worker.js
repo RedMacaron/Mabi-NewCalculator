@@ -118,11 +118,13 @@ async function fetchAllPrices(apiKey, kv) {
     results.forEach(([item, price]) => { price_map[item] = price; });
   }
 
-  // KV에 60초 캐시 저장
+// KV에 65초 캐시 저장 (안정성 확보)
   if (kv) {
     try {
-      await kv.put("prices", JSON.stringify(price_map), { expirationTtl: 60 });
-    } catch {}
+      await kv.put("prices", JSON.stringify(price_map), { expirationTtl: 65 });
+    } catch (e) {
+      console.log("KV Write Error: " + e.message);
+    }
   }
 
   return price_map;
