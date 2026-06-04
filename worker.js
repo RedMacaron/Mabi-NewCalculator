@@ -88,7 +88,15 @@ async function fetchPrice(itemName, apiKey) {
   } catch { return 0; }
 }
 
-async function fetchAllPrices(apiKey) {
+async function fetchAllPrices(apiKey, kv) {
+  // KV 캐시 확인 (60초 TTL)
+  if (kv) {
+    try {
+      const cached = await kv.get("prices");
+      if (cached) return JSON.parse(cached);
+    } catch {}
+  }
+
   const itemSet = new Set();
   for (const items of Object.values(CATEGORIES)) items.forEach(i => itemSet.add(i));
   for (const q of DELIVERY_QUESTS) Object.keys(q.materials).forEach(i => itemSet.add(i));
@@ -104,6 +112,14 @@ async function fetchAllPrices(apiKey) {
     const results = await Promise.all(chunk.map(async item => [item, await fetchPrice(item, apiKey)]));
     results.forEach(([item, price]) => { price_map[item] = price; });
   }
+
+  // KV에 60초 캐시 저장
+  if (kv) {
+    try {
+      await kv.put("prices", JSON.stringify(price_map), { expirationTtl: 60 });
+    } catch {}
+  }
+
   return price_map;
 }
 
@@ -664,7 +680,7 @@ export default {
     }
 
     // 메인 페이지 — 서버사이드에서 모든 시세 조회 후 HTML 반환
-    const prices = await fetchAllPrices(apiKey);
+    const prices = await fetchAllPrices(apiKey, env.MABI_CACHE);
     const now = new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "Asia/Seoul" });
     const html = buildPage(prices, now);
 
