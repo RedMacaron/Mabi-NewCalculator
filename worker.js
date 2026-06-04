@@ -95,11 +95,12 @@ async function fetchAllPrices(apiKey) {
   Object.keys(SHOPPING_LIST).forEach(i => itemSet.add(i));
   SPECIAL_ITEMS.forEach(i => itemSet.add(i));
 
-  // Workers는 async parallel 가능 — 동시 조회로 속도 대폭 향상
-  const entries = await Promise.all(
-    [...itemSet].map(async item => [item, await fetchPrice(item, apiKey)])
-  );
-  return Object.fromEntries(entries);
+  // 순차 조회 (동시 요청 시 Nexon API 차단 방지)
+  const price_map = {};
+  for (const item of itemSet) {
+    price_map[item] = await fetchPrice(item, apiKey);
+  }
+  return price_map;
 }
 
 // ── 유틸 ───────────────────────────────────────────────────
