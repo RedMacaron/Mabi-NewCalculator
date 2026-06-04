@@ -89,12 +89,17 @@ async function fetchPrice(itemName, apiKey) {
 }
 
 async function fetchAllPrices(apiKey, kv) {
-  // KV 캐시 확인 (60초 TTL)
+  // KV 캐시 확인
   if (kv) {
     try {
       const cached = await kv.get("prices");
       if (cached) return JSON.parse(cached);
-    } catch {}
+    } catch (e) {
+      console.log("KV Read Error: " + e.message);
+    }
+  } else {
+    // 대시보드 연동 실패 시 로그에 기록
+    console.log("env.MABI_CACHE is undefined. Please check Cloudflare Bindings.");
   }
 
   const itemSet = new Set();
