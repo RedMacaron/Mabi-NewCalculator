@@ -1,3 +1,7 @@
 name = "mabi-newcalculator"
 main = "worker.js"
 compatibility_date = "2024-01-01"
+
+[[kv_namespaces]]
+binding = "MABI_CACHE"
+id = "0643a6fce66341758a74388da03dfc8b"
