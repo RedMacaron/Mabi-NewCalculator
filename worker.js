@@ -57,7 +57,7 @@ const DELIVERY_QUESTS = [
   { name:"던바튼 주민의 주문",           limit:5, materials:{"탈틴 농장 레드문 귀걸이":1,"탈틴 농장 새벽의 활":1,"탈틴 농장 누름꽃 공예 함":1}, rewardRange:[1,2] },
   { name:"오스나 사일 산지기의 주문",    limit:5, materials:{"탈틴 농장 달콤 케이크":1,"탈틴 농장 이브닝 드레스":2,"탈틴 농장 붉은 배 잼":2}, rewardRange:[1,2] },
   { name:"티르코네일 보부상의 주문",     limit:5, materials:{"탈틴 농장 강력 접착제":2,"탈틴 농장 장식용 크리스탈 검":1,"탈틴 농장 천연 고무":2}, rewardRange:[1,2] },
-  { name:"카브 항구 의상 디자이너의 주문", limit:5, materials:{"탈틴 농장 블랙베리 주스":2,"탈틴 농장 재스민 향수":1,"탈틴 농장 꽃무늬 원피스":1}, rewardRange:[1,2] },
+  { name:"카브 항구 의상 디상이어의 주문", limit:5, materials:{"탈틴 농장 블랙베리 주스":2,"탈틴 농장 재스민 향수":1,"탈틴 농장 꽃무늬 원피스":1}, rewardRange:[1,2] },
   { name:"케안 항구 무역 사무원의 주문", limit:5, materials:{"탈틴 농장 별무늬 샐러드":2,"탈틴 농장 새벽의 활":2,"탈틴 농장 이브닝 드레스":2}, rewardRange:[1,3] },
   { name:"아브네아 상점가 점원의 주문",  limit:5, materials:{"탈틴 농장 강화 섬유":2,"탈틴 농장 장식용 크리스탈 검":2,"탈틴 농장 황혼의 류트":2}, rewardRange:[1,3] },
   { name:"타라 '큰손'의 주문",           limit:5, materials:{"탈틴 농장 이브닝 드레스":2,"탈틴 농장 미드나잇 펄 페인트":2,"탈틴 농장 재스민 향수":2}, rewardRange:[1,3] },
@@ -88,52 +88,62 @@ async function fetchPrice(itemName, apiKey) {
   } catch { return 0; }
 }
 
-async function fetchAllPrices(apiKey, kv) {
-  // KV 캐시 확인
+// 자동 업데이트 대상인 일반 탈농템 시세만 조회 (약 45개로 서브리퀘스트 제한 우회)
+async function fetchAutoPrices(apiKey, kv) {
+  let price_map = {};
   if (kv) {
     try {
-      const cached = await kv.get("prices");
-      if (cached) return JSON.parse(cached);
-    } catch (e) {
-      console.log("KV Read Error: " + e.message);
-    }
-  } else {
-    // 대시보드 연동 실패 시 로그에 기록
-    console.log("env.MABI_CACHE is undefined. Please check Cloudflare Bindings.");
+      const cached = await kv.get("all_prices");
+      if (cached) price_map = JSON.parse(cached);
+    } catch {}
   }
 
-  const itemSet = new Set();
-  for (const items of Object.values(CATEGORIES)) items.forEach(i => itemSet.add(i));
-  for (const q of DELIVERY_QUESTS) Object.keys(q.materials).forEach(i => itemSet.add(i));
-  Object.keys(SHOPPING_LIST).forEach(i => itemSet.add(i));
-  SPECIAL_ITEMS.forEach(i => itemSet.add(i));
+  const autoItems = new Set();
+  for (const items of Object.values(CATEGORIES)) items.forEach(i => autoItems.add(i));
+  for (const q of DELIVERY_QUESTS) Object.keys(q.materials).forEach(i => autoItems.add(i));
+  Object.keys(SHOPPING_LIST).forEach(i => {
+    if (!SPECIAL_ITEMS.includes(i)) autoItems.add(i);
+  });
 
-  // 5개씩 묶어서 병렬 조회 (속도 + 안정성 균형)
-  const items = [...itemSet];
-  const price_map = {};
+  const items = [...autoItems];
   const chunkSize = 5;
   for (let i = 0; i < items.length; i += chunkSize) {
     const chunk = items.slice(i, i + chunkSize);
     const results = await Promise.all(chunk.map(async item => [item, await fetchPrice(item, apiKey)]));
-    results.forEach(([item, price]) => { price_map[item] = price; });
+    results.forEach(([item, price]) => { if (price > 0 || !price_map[item]) price_map[item] = price; });
   }
 
-// KV에 65초 캐시 저장 (안정성 확보)
+  if (kv) {
+    try { await kv.put("all_prices", JSON.stringify(price_map)); } catch {}
+  }
+  return price_map;
+}
+
+// 수동 버튼 클릭 시 호출될 특화 채집 19개 아이템 전용 새로고침 로직
+async function refreshSpecialPrices(apiKey, kv) {
+  let price_map = {};
   if (kv) {
     try {
-      await kv.put("prices", JSON.stringify(price_map), { expirationTtl: 65 });
-    } catch (e) {
-      console.log("KV Write Error: " + e.message);
-    }
+      const cached = await kv.get("all_prices");
+      if (cached) price_map = JSON.parse(cached);
+    } catch {}
   }
 
+  const chunkSize = 5;
+  for (let i = 0; i < SPECIAL_ITEMS.length; i += chunkSize) {
+    const chunk = SPECIAL_ITEMS.slice(i, i + chunkSize);
+    const results = await Promise.all(chunk.map(async item => [item, await fetchPrice(item, apiKey)]));
+    results.forEach(([item, price]) => { if (price > 0 || !price_map[item]) price_map[item] = price; });
+  }
+
+  if (kv) {
+    try { await kv.put("all_prices", JSON.stringify(price_map)); } catch {}
+  }
   return price_map;
 }
 
 // ── 유틸 ───────────────────────────────────────────────────
 const fmt = n => Number(n).toLocaleString("ko-KR");
-const profitColor = p => p > 0 ? "#00ffc8" : p < 0 ? "#ff6b6b" : "#ffd166";
-const profitLabel = p => p > 0 ? `🟢 +${fmt(p)} G` : p < 0 ? `🔴 ${fmt(p)} G` : `⚪ 0 G`;
 
 // ── HTML 빌더 ──────────────────────────────────────────────
 function buildPage(prices, fetchedAt) {
@@ -146,7 +156,6 @@ function buildPage(prices, fetchedAt) {
     const rangeLabel = isFixed ? "열쇠·업템 각 1개 고정" : `열쇠 ${range[0]} ~ ${range[1]}개 / 업템 ${range[0]} ~ ${range[1]}개`;
     const missingHtml = missing.length ? `<div class="warn">⚠️ 매물없음: ${missing.map(m=>m.replace("탈틴 농장 ","")).join(", ")}</div>` : "";
 
-    // 시뮬레이터 라디오 버튼
     const keyOpts = isFixed ? `<span class="fixed-badge">1개 고정</span>` :
       Array.from({length: range[1]-range[0]+1}, (_,i) => range[0]+i)
         .map(n => `<label class="rbtn"><input type="radio" name="key_${q.name}" value="${n}" ${n===range[0]?"checked":""}> ${n}개</label>`).join("");
@@ -222,10 +231,11 @@ function buildPage(prices, fetchedAt) {
     }).join("");
   };
 
-  // 섹션6: 특화 채집 시세
+  // 섹션6: 특화 채집 시세 카드화 로직 (id속성 추가 부여)
   const specialHtml = SPECIAL_ITEMS.map(item => {
     const p = prices[item] || 0;
-    return `<div class="item-row">${itemImg(item)}<span>${item}</span><strong>${p ? fmt(p)+" G" : "매물없음"}</strong></div>`;
+    const safeItemName = item.replace(/[^a-zA-Z0-9가-힣]/g, "_");
+    return `<div class="item-row" id="spec_row_${safeItemName}">${itemImg(item)}<span>${item}</span><strong id="spec_price_${safeItemName}">${p ? fmt(p)+" G" : "매물없음"}</strong></div>`;
   }).join("");
 
   return `<!DOCTYPE html>
@@ -249,9 +259,10 @@ h3 { font-size: 15px; color: var(--accent); margin: 16px 0 8px; }
 .info-bar { display:flex; align-items:center; gap:12px; margin-bottom:12px; font-size:12px; color:var(--text2); }
 .refresh-btn { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
 .refresh-btn:hover { background: var(--border); }
+.special-refresh-btn { background: #1f3d37; border: 1px solid var(--accent); color: var(--accent); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold; }
+.special-refresh-btn:hover { background: var(--accent); color: #000; }
 hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
 
-/* 퀘스트 카드 */
 .quest-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
 .quest-header { display: grid; grid-template-columns: 3fr 1fr 1.5fr 1.5fr; gap: 12px; padding: 12px 16px; align-items: start; }
 .quest-name strong { font-size: 14px; color: #fff; }
@@ -259,7 +270,6 @@ hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
 .meta-label { display: block; font-size: 11px; color: var(--text2); margin-bottom: 2px; }
 .quest-meta strong { font-size: 14px; color: #fff; }
 
-/* 시뮬레이터 */
 .sim-details summary { padding: 8px 16px; cursor: pointer; font-size: 13px; color: var(--accent); background: rgba(0,0,0,0.2); user-select: none; }
 .sim-details summary:hover { background: rgba(0,0,0,0.3); }
 .sim-body { display: flex; gap: 16px; padding: 14px 16px; flex-wrap: wrap; }
@@ -273,7 +283,6 @@ hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
 .fixed-badge { font-size: 12px; color: var(--text2); padding: 4px 8px; }
 .profit-big { font-size: 18px; font-weight: bold; margin-top: 8px; }
 
-/* 테이블 */
 table { width: 100%; border-collapse: collapse; margin-top: 8px; }
 th { background: #31333f; color: #fff; padding: 8px 12px; text-align: left; font-size: 13px; }
 td { padding: 7px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
@@ -281,7 +290,6 @@ td.num { text-align: right; }
 tr:hover td { background: rgba(255,255,255,0.03); }
 .total-row { background: rgba(0,255,200,0.05); font-weight: bold; }
 
-/* 시세 카드 */
 .item-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; border-radius: 6px; background: rgba(150,150,150,0.08); margin-bottom: 4px; }
 .item-row span { flex: 1; }
 .item-row strong { color: #fff; white-space: nowrap; }
@@ -290,7 +298,6 @@ tr:hover td { background: rgba(255,255,255,0.03); }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .cat-block { margin-bottom: 16px; }
 
-/* 탭 */
 .tab-btns { display: flex; gap: 8px; margin-bottom: 16px; }
 .tab-btn { padding: 8px 18px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--text); cursor: pointer; font-size: 13px; }
 .tab-btn.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: bold; }
@@ -301,7 +308,6 @@ tr:hover td { background: rgba(255,255,255,0.03); }
 .ref-section p { color: var(--text2); font-size: 13px; margin-bottom: 2px; }
 .ref-section strong { color: #fff; }
 
-/* 장바구니 */
 .cart-form { display: flex; gap: 8px; margin-bottom: 12px; align-items: flex-end; }
 .cart-form input[type=text] { flex: 1; background: #3f404d; border: 1px solid var(--border); color: #fff; padding: 8px 12px; border-radius: 6px; font-size: 13px; }
 .cart-form input[type=number] { width: 80px; background: #3f404d; border: 1px solid var(--border); color: #fff; padding: 8px 12px; border-radius: 6px; font-size: 13px; }
@@ -316,7 +322,6 @@ tr:hover td { background: rgba(255,255,255,0.03); }
 .metric-box .m-label { font-size: 11px; color: var(--text2); }
 .metric-box .m-val { font-size: 22px; font-weight: bold; color: var(--accent); }
 
-/* 납품 퀘스트 체크리스트 */
 .quest-check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .quest-check-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; }
 .quest-check-card label { cursor: pointer; font-size: 14px; color: #fff; }
@@ -338,25 +343,15 @@ tr:hover td { background: rgba(255,255,255,0.03); }
 <div class="container">
 <h1>💰 마비노기 물교 &amp; 경매장 계산기</h1>
 
-<!-- ── 섹션 0: 납품 손익 분석 ── -->
 <h2>🏆 납품 퀘스트 손익 분석</h2>
 <div class="info-bar">
-  <button class="refresh-btn" onclick="location.reload()">🔄 새로고침</button>
-  <span>경매장 최저가 기준 | 조회: ${fetchedAt} | 열쇠 25,000G / 업템: 벽돌 1만·철판 2만·도료 3만·유리 4만</span>
+  <button class="refresh-btn" onclick="location.reload()">🔄 탈농템 새로고침</button>
+  <span>조회: ${fetchedAt} | 열쇠 25,000G / 업템: 벽돌 1만·철판 2만·도료 3만·유리 4만</span>
 </div>
-<details style="margin-bottom:12px">
-  <summary style="cursor:pointer;color:var(--accent);font-size:13px;">ℹ️ 계산 방식 안내</summary>
-  <div style="padding:12px;background:var(--card);border-radius:6px;margin-top:6px;font-size:13px;color:var(--text2);">
-    재료비는 경매장 최저가 기준 1회 납품 비용입니다.<br>
-    보상 시뮬레이터에서 열쇠 개수·업템 종류·업템 개수를 선택하면 즉시 손익이 계산됩니다.<br>
-    손익 = (열쇠 × 25,000G) + (업템 × 선택 가격) − 1회 재료비
-  </div>
-</details>
 ${questCards}
 
 <hr>
 
-<!-- ── 섹션 1: 6티어 재료 ── -->
 <h2>📅 이번 주 물교 6티어 재료</h2>
 <table>
   <thead><tr><th>아이템</th><th class="num">최저가</th><th class="num">수량</th><th class="num">합계</th></tr></thead>
@@ -369,120 +364,7 @@ ${questCards}
 
 <hr>
 
-<!-- ── 섹션 2: 장바구니 ── -->
-<h2>🔍 개별 품목 검색 (장바구니)</h2>
-<div class="cart-form">
-  <input type="text" id="cart-name" placeholder="아이템 이름">
-  <input type="number" id="cart-cnt" value="1" min="1">
-  <button class="btn-primary" onclick="cartAdd()">추가 ➕</button>
-</div>
-<div id="cart-list"></div>
-<div style="margin-top:8px;display:flex;gap:8px;">
-  <button class="btn-primary" onclick="cartCalc()">🔎 견적 확인</button>
-  <button class="btn-secondary" onclick="cartClear()">🗑️ 목록 비우기</button>
-</div>
-<div id="cart-result"></div>
-
-<hr>
-
-<!-- ── 섹션 3: 물물교환 참고표 ── -->
-<h2>📚 물물교환 재료 참고표</h2>
-<p style="color:var(--text2);font-size:13px;margin-bottom:12px;">
-  💡 6티어는 본인 특화는 자급, 나머지는 경매장 구매 추천!<br>
-  그랜마 상인 + 윌리엄or교역파트너 부유선(6티어탈농만루트) + 임프의 고급 보증서(필수!) → 탈틴 or 티르코네일 판매
-</p>
-<div class="tab-btns">
-  <button class="tab-btn active" onclick="switchTab('tab2')">🛠️ 6티어 탈농만 루트</button>
-  <button class="tab-btn" onclick="switchTab('tab1')">📚 기존 표준 루트</button>
-</div>
-
-<div id="tab2" class="tab-content active">
-  <div class="ref-grid">
-    <div class="ref-section">
-      <h4>🧪 포션 &amp; 목공</h4>
-      <p>생명력 500 포션 <strong>14개</strong></p><p>정령의 리큐르 <strong>7개</strong></p>
-      <p>최고급 나무장작 <strong>9개</strong></p><p>특급 나무장작 <strong>9개</strong></p><p>중급 나무장작 <strong>35개</strong></p>
-      <p>건초더미 <strong>9개</strong></p><p>독묻은 와이번 볼트 <strong>9개</strong></p>
-      <br><p style="color:var(--accent);font-size:12px;">🛒 윌리엄or교역파트너 + 부유선 (페라→칼리다→오아시스→카루)</p>
-      <table style="margin-top:6px;font-size:12px;">
-        <tr><th>교역소</th><th>4T</th><th>5T</th><th>6T</th></tr>
-        <tr><td>페라</td><td>7개</td><td>3개</td><td>-</td></tr>
-        <tr><td>칼리다</td><td>7개</td><td>3개</td><td>-</td></tr>
-        <tr><td>오아시스</td><td>7개</td><td>3개</td><td>2개</td></tr>
-        <tr><td>카루</td><td>7개</td><td>3개</td><td>3개</td></tr>
-      </table>
-    </div>
-    <div class="ref-section">
-      <h4>🧵 방직 &amp; 공학</h4>
-      <p>고급 옷감 <strong>28개</strong></p><p>최고급 옷감 <strong>35개</strong></p>
-      <p>튼튼한 고리 <strong>3개</strong></p><p>고급 실크 <strong>28개</strong></p><p>고급 가죽 끈 <strong>35개</strong></p>
-      <p>마력이 깃든 나무장작 <strong>15개</strong></p><p>뮤턴트 <strong>3개</strong></p>
-      <p>에너지 증폭 장치 <strong>6개</strong></p><p>스핀 기어 <strong>7개</strong></p><p>에메랄드 퓨즈 <strong>7개</strong></p>
-    </div>
-    <div class="ref-section">
-      <h4>💎 제련 &amp; 기타</h4>
-      <p>은판 <strong>14개</strong></p><p>미스릴 대못 <strong>9개</strong></p>
-      <p>반짝이 종이 <strong>35개</strong></p><p>마법의 깃털펜 <strong>15개</strong></p>
-      <p>조화의 코스모스 퍼퓸 <strong>6개</strong></p><p>펫 놀이세트 <strong>3개</strong></p><p>인조 잔디 <strong>7개</strong></p>
-      <br><p style="color:var(--accent);font-size:12px;">[희귀 재료]</p>
-      <p>탈틴 농장 달콤 케이크 <strong>3개</strong></p><p>탈틴 농장 레드문 귀걸이 <strong>3개</strong></p>
-      <p>탈틴 농장 천연 고무 <strong>3개</strong></p><p>탈틴 농장 재스민 향수 <strong>2개</strong></p>
-      <p>탈틴 농장 장식용 크리스탈 검 <strong>2개</strong></p>
-      <p>남동판 <strong>2개</strong></p><p>백연판 <strong>2개</strong></p>
-      <p>산딸기 크림 소스 박스 <strong>2개</strong></p><p>루멘 시럽 <strong>2개</strong></p>
-    </div>
-  </div>
-</div>
-
-<div id="tab1" class="tab-content">
-  <div class="ref-grid">
-    <div class="ref-section">
-      <h4>🧪 포션 &amp; 목공</h4>
-      <p>생명력 500 포션 <strong>14개</strong></p><p>정령의 리큐르 <strong>7개</strong></p>
-      <p>최고급 나무장작 <strong>9개</strong></p><p>특급 나무장작 <strong>9개</strong></p><p>중급 나무장작 <strong>35개</strong></p>
-      <p>건초더미 <strong>9개</strong></p><p>독묻은 와이번 볼트 <strong>9개</strong></p>
-      <br><p style="color:var(--accent);font-size:12px;">🛒 구매순서: 페라→칼리다→오아시스→카루</p>
-      <table style="margin-top:6px;font-size:12px;">
-        <tr><th>교역소</th><th>4T</th><th>5T</th><th>6T</th></tr>
-        <tr><td>페라</td><td>7개</td><td>3개</td><td>2개</td></tr>
-        <tr><td>칼리다</td><td>-</td><td>3개</td><td>2개</td></tr>
-        <tr><td>오아시스</td><td>7개</td><td>3개</td><td>2개</td></tr>
-        <tr><td>카루</td><td>7개</td><td>3개</td><td>3개</td></tr>
-      </table>
-    </div>
-    <div class="ref-section">
-      <h4>🧵 방직 &amp; 공학</h4>
-      <p>고급 옷감 <strong>28개</strong></p><p>최고급 옷감 <strong>35개</strong></p>
-      <p>튼튼한 고리 <strong>3개</strong></p><p>고급 실크 <strong>28개</strong></p>
-      <p>마력이 깃든 나무장작 <strong>15개</strong></p><p>뮤턴트 <strong>3개</strong></p>
-      <p>에너지 증폭 장치 <strong>6개</strong></p><p>스핀 기어 <strong>7개</strong></p>
-    </div>
-    <div class="ref-section">
-      <h4>💎 제련 &amp; 기타</h4>
-      <p>은판 <strong>14개</strong></p><p>미스릴 대못 <strong>9개</strong></p>
-      <p>반짝이 종이 <strong>35개</strong></p><p>마법의 깃털펜 <strong>15개</strong></p>
-      <p>조화의 코스모스 퍼퓸 <strong>6개</strong></p><p>펫 놀이세트 <strong>3개</strong></p>
-      <br><p style="color:var(--accent);font-size:12px;">[희귀 재료]</p>
-      <p>탈틴 농장 달콤 케이크 <strong>3개</strong></p><p>탈틴 농장 레드문 귀걸이 <strong>3개</strong></p>
-      <p>탈틴 농장 천연 고무 <strong>3개</strong></p><p>탈틴 농장 재스민 향수 <strong>2개</strong></p>
-      <p>탈틴 농장 장식용 크리스탈 검 <strong>2개</strong></p>
-      <p>남동판 <strong>2개</strong></p><p>백연판 <strong>2개</strong></p>
-      <p>산딸기 크림 소스 박스 <strong>2개</strong></p><p>루멘 시럽 <strong>2개</strong></p>
-    </div>
-  </div>
-</div>
-
-<hr>
-
-<!-- ── 섹션 4: 아르바이트 ── -->
-<h2>🕊️ 아르바이트 보상 받기 목록</h2>
-<p>관청: 잡보 아무거나 | 식료품: 낙지 | 의류점: <strong>튼튼한 고리</strong> (1순위) / 물교용 방직 재료 (2순위) | 힐러: 생명력 500 포션 | 서점: 마법의 깃털펜</p>
-
-<hr>
-
-<!-- ── 섹션 5: 탈농 시세 ── -->
 <h2>📈 탈틴 농장 실시간 시세</h2>
-<div class="info-bar"><span>경매장 최저가 기준 | 조회: ${fetchedAt}</span></div>
 <h3>기본 생산품</h3>
 <div class="grid-3">${farmBasic}</div>
 <div class="grid-2" style="margin-top:16px;">
@@ -498,16 +380,16 @@ ${questCards}
 
 <hr>
 
-<!-- ── 섹션 6: 특화 채집 시세 ── -->
 <h2>💎 특화 채집 실시간 시세</h2>
-<div class="info-bar"><span>경매장 최저가 기준 | 조회: ${fetchedAt}</span></div>
+<div class="info-bar">
+  <button class="special-refresh-btn" id="btn-special-refresh" onclick="refreshSpecialClient()">⚡ 특화채집 시세만 새로고침</button>
+  <span id="special-status-text">특화채집은 위 버튼을 누를 때만 실시간 갱신됩니다.</span>
+</div>
 <div class="grid-4">${specialHtml}</div>
 
 <hr>
 
-<!-- ── 섹션 7: 납품 퀘스트 계산기 ── -->
 <h2>📦 생활 협회 납품 퀘스트 계산기</h2>
-<p style="color:var(--text2);font-size:13px;margin-bottom:10px;">진행하려는 퀘스트를 체크하고 견적을 확인하세요.</p>
 <div style="display:flex;gap:8px;margin-bottom:10px;">
   <button class="btn-primary" onclick="checkAll(true)">전체 선택</button>
   <button class="btn-secondary" onclick="checkAll(false)">전체 해제</button>
@@ -525,7 +407,6 @@ ${questCards}
 </div>
 
 <script>
-// ── 데이터 (JS 클라이언트용) ──
 const PRICES = ${JSON.stringify(prices)};
 const QUESTS = ${JSON.stringify(DELIVERY_QUESTS)};
 const UPGRADE_ITEMS = ${JSON.stringify(UPGRADE_ITEMS)};
@@ -533,20 +414,44 @@ const KEY_VALUE = ${KEY_VALUE};
 
 const fmt = n => Number(n).toLocaleString("ko-KR");
 
-// ── 탭 전환 ──
-function switchTab(id) {
-  document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
-  document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
-  document.getElementById(id).classList.add("active");
-  event.target.classList.add("active");
+// 클라이언트 사이드 비동기 특화 채집 새로고침 기능
+async function refreshSpecialClient() {
+  const btn = document.getElementById("btn-special-refresh");
+  const status = document.getElementById("special-status-text");
+  btn.disabled = true;
+  btn.innerText = "🔄 시세 수집 중 (약 5초)...";
+  status.innerText = "넥슨 open API에서 특화 채집 19종을 따로 수집하고 있습니다...";
+
+  try {
+    const res = await fetch("/api/refresh-special");
+    if (res.ok) {
+      const newPrices = await res.json();
+      Object.assign(PRICES, newPrices);
+      
+      // 화면의 특화 채집 가격 요소 동적 갱신
+      for (const [item, price] of Object.entries(newPrices)) {
+        const safeId = item.replace(/[^a-zA-Z0-9가-힣]/g, "_");
+        const priceEl = document.getElementById("spec_price_" + safeId);
+        if (priceEl) {
+          priceEl.innerText = price ? fmt(price) + " G" : "매물없음";
+        }
+      }
+      status.innerText = "✨ 특화 채집 시세 갱신 완료!";
+    } else {
+      status.innerText = "❌ 갱신 중 서버 오류가 발생했습니다.";
+    }
+  } catch (e) {
+    status.innerText = "❌ 네트워크 연결 오류가 발생했습니다.";
+  } finally {
+    btn.disabled = false;
+    btn.innerText = "⚡ 특화채집 시세만 새로고침";
+  }
 }
 
 // ── 보상 시뮬레이터 ──
 document.addEventListener("change", function(e) {
   const input = e.target;
   if (!input.matches("input[type=radio]")) return;
-  const name = input.name; // e.g. "key_두갈드..."
-  // 어느 sim-body에 속하는지 찾기
   const simBody = input.closest(".sim-body");
   if (!simBody) return;
   updateSim(simBody);
@@ -575,45 +480,8 @@ function updateSim(simBody) {
   if (profitEl) { profitEl.textContent = label; profitEl.style.color = color; }
 }
 
-// 페이지 로드 시 모든 시뮬레이터 초기값 계산
 document.querySelectorAll(".sim-body").forEach(updateSim);
 
-// ── 장바구니 ──
-let cart = JSON.parse(localStorage.getItem("mabi_cart") || "[]");
-function saveCart() { localStorage.setItem("mabi_cart", JSON.stringify(cart)); }
-function renderCart() {
-  const el = document.getElementById("cart-list");
-  if (!cart.length) { el.innerHTML = ""; return; }
-  el.innerHTML = cart.map((item, i) =>
-    \`<div class="cart-item"><span>\${item.name} × \${item.cnt}개</span><button class="del-btn" onclick="cartDel(\${i})">삭제</button></div>\`
-  ).join("");
-}
-function cartAdd() {
-  const name = document.getElementById("cart-name").value.trim();
-  const cnt = parseInt(document.getElementById("cart-cnt").value) || 1;
-  if (!name) return;
-  cart.push({ name, cnt });
-  saveCart(); renderCart();
-  document.getElementById("cart-name").value = "";
-}
-function cartDel(i) { cart.splice(i, 1); saveCart(); renderCart(); }
-function cartClear() { cart = []; saveCart(); renderCart(); document.getElementById("cart-result").innerHTML = ""; }
-async function cartCalc() {
-  if (!cart.length) return;
-  const res = document.getElementById("cart-result");
-  res.innerHTML = "<p style='color:var(--text2)'>조회 중...</p>";
-  const rows = await Promise.all(cart.map(async item => {
-    const p = await fetchPriceClient(item.name);
-    return { name: item.name, cnt: item.cnt, price: p };
-  }));
-  const total = rows.reduce((s, r) => s + r.price * r.cnt, 0);
-  res.innerHTML = \`
-    <div class="metric-box"><div class="m-label">장바구니 총액</div><div class="m-val">\${fmt(total)} G</div></div>
-    <table><thead><tr><th>아이템</th><th class="num">최저가</th><th class="num">수량</th><th class="num">합계</th></tr></thead>
-    <tbody>\${rows.map(r => \`<tr><td>\${r.name}</td><td class="num">\${r.price ? fmt(r.price)+" G" : "매물없음"}</td><td class="num">\${r.cnt}개</td><td class="num">\${fmt(r.price*r.cnt)} G</td></tr>\`).join("")}</tbody></table>\`;
-}
-
-// ── 납품 퀘스트 체크리스트 ──
 function buildQuestChecks() {
   const grid = document.getElementById("quest-check-grid");
   grid.innerHTML = QUESTS.map(q => {
@@ -653,7 +521,6 @@ async function calcQuests() {
     <tbody>\${rows.map(r => \`<tr><td>\${r.name}</td><td class="num">\${r.price ? fmt(r.price)+" G" : "매물없음"}</td><td class="num">\${r.cnt}개</td><td class="num">\${fmt(r.price*r.cnt)} G</td></tr>\`).join("")}</tbody></table>\`;
 }
 
-// ── 클라이언트 단건 조회 (장바구니/납품계산기) ──
 async function fetchPriceClient(itemName) {
   try {
     const res = await fetch("/api/price?item=" + encodeURIComponent(itemName));
@@ -662,8 +529,6 @@ async function fetchPriceClient(itemName) {
   } catch { return 0; }
 }
 
-// 초기화
-renderCart();
 buildQuestChecks();
 </script>
 </body>
@@ -676,7 +541,14 @@ export default {
     const url = new URL(request.url);
     const apiKey = env.NEXON_API_KEY;
 
-    // /api/price?item=xxx  — 클라이언트 단건 조회용
+    // /api/refresh-special — 특화 채집 19개만 수동 갱신하는 비동기 API 엔드포인트
+    if (url.pathname === "/api/refresh-special") {
+      const prices = await refreshSpecialPrices(apiKey, env.MABI_CACHE);
+      return new Response(JSON.stringify(prices), {
+        headers: { "content-type": "application/json", "Access-Control-Allow-Origin": "*" }
+      });
+    }
+
     if (url.pathname === "/api/price") {
       const item = url.searchParams.get("item");
       if (!item) return new Response(JSON.stringify({ price: 0 }), { headers: { "content-type": "application/json" } });
@@ -686,8 +558,8 @@ export default {
       });
     }
 
-    // 메인 페이지 — 서버사이드에서 모든 시세 조회 후 HTML 반환
-    const prices = await fetchAllPrices(apiKey, env.MABI_CACHE);
+    // 메인 로딩 시에는 오직 탈농템+쇼핑리스트만 자동 조회하여 50회 하드리밋 절대 방지
+    const prices = await fetchAutoPrices(apiKey, env.MABI_CACHE);
     const now = new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "Asia/Seoul" });
     const html = buildPage(prices, now);
 
