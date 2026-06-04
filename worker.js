@@ -129,6 +129,7 @@ function buildPage(prices, fetchedAt) {
   <div class="quest-header">
     <div class="quest-name">
       <strong>${q.name}</strong>
+      <div class="mat-tags" style="margin-top:5px;">${Object.entries(q.materials).map(([k,v]) => `<span class="mat-tag">${k.replace("탈틴 농장 ","")} <b>${v}개</b></span>`).join("")}</div>
       ${missingHtml}
     </div>
     <div class="quest-meta"><span class="meta-label">납품 횟수</span><strong>${q.limit}회</strong></div>
