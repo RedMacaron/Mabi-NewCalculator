@@ -67,6 +67,13 @@ const DELIVERY_QUESTS = [
 const UPGRADE_ITEMS = { "벽돌":10000, "철판":20000, "도료":30000, "유리":40000 };
 const KEY_VALUE = 25000;
 
+const SPECIAL_ITEMS = [
+  "노랑망태버섯","설련화","브리움 우유","카넬리안","여울 이삭",
+  "아벤츄린","밀키쿼츠","남동석","악마의 손가락","산딸기",
+  "적철석","신비한 깃털","루멘 플랜트","힐웬 광정","실리엔 응축액",
+  "월광 당근","백연석","마력 심재핵","빛나는 양털"
+];
+
 // ── API 헬퍼 ───────────────────────────────────────────────
 async function fetchPrice(itemName, apiKey) {
   const url = `https://open.api.nexon.com/mabinogi/v1/auction/list?item_name=${encodeURIComponent(itemName)}`;
@@ -86,6 +93,7 @@ async function fetchAllPrices(apiKey) {
   for (const items of Object.values(CATEGORIES)) items.forEach(i => itemSet.add(i));
   for (const q of DELIVERY_QUESTS) Object.keys(q.materials).forEach(i => itemSet.add(i));
   Object.keys(SHOPPING_LIST).forEach(i => itemSet.add(i));
+  SPECIAL_ITEMS.forEach(i => itemSet.add(i));
 
   // Workers는 async parallel 가능 — 동시 조회로 속도 대폭 향상
   const entries = await Promise.all(
@@ -186,6 +194,12 @@ function buildPage(prices, fetchedAt) {
     }).join("");
   };
 
+  // 섹션6: 특화 채집 시세
+  const specialHtml = SPECIAL_ITEMS.map(item => {
+    const p = prices[item] || 0;
+    return `<div class="item-row">${itemImg(item)}<span>${item}</span><strong>${p ? fmt(p)+" G" : "매물없음"}</strong></div>`;
+  }).join("");
+
   return `<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -244,6 +258,7 @@ tr:hover td { background: rgba(255,255,255,0.03); }
 .item-row span { flex: 1; }
 .item-row strong { color: #fff; white-space: nowrap; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .cat-block { margin-bottom: 16px; }
 
@@ -286,7 +301,7 @@ tr:hover td { background: rgba(255,255,255,0.03); }
 @media (max-width: 700px) {
   .quest-header { grid-template-columns: 1fr 1fr; }
   .ref-grid, .quest-check-grid { grid-template-columns: 1fr; }
-  .grid-3 { grid-template-columns: 1fr 1fr; }
+  .grid-3, .grid-4 { grid-template-columns: 1fr 1fr; }
   .grid-2 { grid-template-columns: 1fr; }
 }
 </style>
@@ -452,6 +467,13 @@ ${questCards}
     <div class="cat-block"><h3>섬세한 마법의 솥</h3>${makeCatHtml("섬세한 마법의 솥")}</div>
   </div>
 </div>
+
+<hr>
+
+<!-- ── 섹션 6: 특화 채집 시세 ── -->
+<h2>💎 특화 채집 실시간 시세</h2>
+<div class="info-bar"><span>경매장 최저가 기준 | 조회: ${fetchedAt}</span></div>
+<div class="grid-4">${specialHtml}</div>
 
 <hr>
 
