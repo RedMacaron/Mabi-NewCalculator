@@ -46,12 +46,12 @@ const CATEGORIES = {
 
 const DELIVERY_QUESTS = [
   { name:"두갈드 아일 목수의 주문",      limit:7, materials:{"탈틴 농장 일반 블랙베리":1,"탈틴 농장 자색 원단":2,"탈틴 농장 붉은 배 잼":2} },
-  { name:"슬리아브 퀼린 광부의 주문",    limit:7, materials:{"탈틴 농장 일반 오크라":1,"탈틴 농장 강력 접착제":2,"탈틴 농장 방수 원단":2} },
+  { name:"슬리아브 퀼린 광부의 주문",    limit:7, materials:{"탈틴 농장 일반 오크라":1,"탈틴 농장 강력 접착제":1,"탈틴 농장 방수 원단":2} },
   { name:"레자르 양조장 관리인의 주문",  limit:7, materials:{"탈틴 농장 일반 재스민":2,"탈틴 농장 레드문 귀걸이":2,"탈틴 농장 달콤 케이크":1} },
-  { name:"탈틴 괴짜 연금술사의 주문",   limit:7, materials:{"탈틴 농장 일반 붉은 배":1,"탈틴 농장 블랙베리 주스":1,"탈틴 농장 석영 파우더":1} },
+  { name:"탈틴 괴짜 연금술사의 주문",   limit:7, materials:{"탈틴 농장 일반 붉은 배":1,"탈틴 농장 블랙베리 주스":1,"탈틴 농장 석영 파우더":2} },
   { name:"케안 항구 선원의 주문",        limit:7, materials:{"탈틴 농장 일반 고무":2,"탈틴 농장 천연 고무":1,"탈틴 농장 별무늬 샐러드":1} },
   { name:"센마이 상점가 점원의 주문",    limit:7, materials:{"탈틴 농장 일반 마법 거미줄":2,"탈틴 농장 꽃무늬 원피스":1,"탈틴 농장 누름꽃 공예 함":1} },
-  { name:"반호르 시계 장인의 주문",      limit:7, materials:{"탈틴 농장 일반 석영":2,"탈틴 농장 퓨어 블러썸 머리핀":1,"탈틴 농장 강화 섬유":1} },
+  { name:"반호르 시계 장인의 주문",      limit:7, materials:{"탈틴 농장 일반 석영":1,"탈틴 농장 퓨어 블러썸 머리핀":1,"탈틴 농장 강화 섬유":1} },
   { name:"이멘 마하 인테리어 전문가의 주문", limit:5, materials:{"탈틴 농장 자색 원단":1,"탈틴 농장 미드나잇 펄 페인트":2,"탈틴 농장 방수 원단":1}, rewardRange:[1,2] },
   { name:"음유시인 캠프 방랑자의 주문",  limit:5, materials:{"탈틴 농장 퓨어 블러썸 머리핀":2,"탈틴 농장 황혼의 류트":1,"탈틴 농장 석영 파우더":1}, rewardRange:[1,2] },
   { name:"던바튼 주민의 주문",           limit:5, materials:{"탈틴 농장 레드문 귀걸이":1,"탈틴 농장 새벽의 활":1,"탈틴 농장 누름꽃 공예 함":1}, rewardRange:[1,2] },
@@ -167,15 +167,21 @@ function buildPage(prices, fetchedAt) {
   const shoppingTotal = Object.entries(SHOPPING_LIST).reduce((s,[k,v]) => s+(prices[k]||0)*v, 0);
 
   // 섹션5: 탈농 시세
+  const IMG_BASE = "https://raw.githubusercontent.com/RedMacaron/Mabi-NewCalculator/main/images/";
+  const itemImg = (name) => {
+    const encoded = encodeURIComponent(name + ".png");
+    return `<img src="${IMG_BASE}${encoded}" onerror="this.style.display='none'" style="width:28px;height:28px;object-fit:contain;margin-right:8px;vertical-align:middle;">`;
+  };
+
   const farmBasic = CATEGORIES["기본 생산품"].map(item => {
     const p = prices[item] || 0;
-    return `<div class="item-row"><span>${item.replace("탈틴 농장 ","")}</span><strong>${fmt(p)} G</strong></div>`;
+    return `<div class="item-row">${itemImg(item)}<span>${item.replace("탈틴 농장 ","")}</span><strong>${fmt(p)} G</strong></div>`;
   }).join("");
 
   const makeCatHtml = (catName) => {
     return CATEGORIES[catName].map(item => {
       const p = prices[item] || 0;
-      return `<div class="item-row"><span>${item.replace("탈틴 농장 ","")}</span><strong>${fmt(p)} G</strong></div>`;
+      return `<div class="item-row">${itemImg(item)}<span>${item.replace("탈틴 농장 ","")}</span><strong>${fmt(p)} G</strong></div>`;
     }).join("");
   };
 
@@ -234,7 +240,8 @@ tr:hover td { background: rgba(255,255,255,0.03); }
 
 /* 시세 카드 */
 .item-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; border-radius: 6px; background: rgba(150,150,150,0.08); margin-bottom: 4px; }
-.item-row strong { color: #fff; }
+.item-row span { flex: 1; }
+.item-row strong { color: #fff; white-space: nowrap; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .cat-block { margin-bottom: 16px; }
