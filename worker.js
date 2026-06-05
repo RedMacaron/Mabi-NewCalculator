@@ -540,15 +540,16 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const apiKey = env.NEXON_API_KEY;
-
-    // /api/refresh-special — 특화 채집 19개만 수동 갱신하는 비동기 API 엔드포인트
+ 
+    // 특화 채집 수동 갱신
     if (url.pathname === "/api/refresh-special") {
       const prices = await refreshSpecialPrices(apiKey, env.MABI_CACHE);
       return new Response(JSON.stringify(prices), {
         headers: { "content-type": "application/json", "Access-Control-Allow-Origin": "*" }
       });
     }
-
+ 
+    // 단건 가격 조회
     if (url.pathname === "/api/price") {
       const item = url.searchParams.get("item");
       if (!item) return new Response(JSON.stringify({ price: 0 }), { headers: { "content-type": "application/json" } });
@@ -557,14 +558,76 @@ export default {
         headers: { "content-type": "application/json", "Access-Control-Allow-Origin": "*" }
       });
     }
-
-    // 메인 로딩 시에는 오직 탈농템+쇼핑리스트만 자동 조회하여 50회 하드리밋 절대 방지
+ 
+    // 그래프용 시계열 조회
+    if (url.pathname === "/api/history") {
+      const item = url.searchParams.get("item");
+      const hours = parseInt(url.searchParams.get("hours") || "24");
+      if (!item || !env.MABI_DB) return new Response(JSON.stringify([]), { headers: { "content-type": "application/json" } });
+      try {
+        const rows = await env.MABI_DB.prepare(
+          `SELECT recorded_at, price FROM prices WHERE item_name = ? AND recorded_at >= datetime('now', '-${hours} hours') ORDER BY recorded_at ASC`
+        ).bind(item).all();
+        return new Response(JSON.stringify(rows.results), {
+          headers: { "content-type": "application/json", "Access-Control-Allow-Origin": "*" }
+        });
+      } catch { return new Response(JSON.stringify([]), { headers: { "content-type": "application/json" } }); }
+    }
+ 
+    // 메인 페이지
     const prices = await fetchAutoPrices(apiKey, env.MABI_CACHE);
-    const now = new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "Asia/Seoul" });
+    const now = new Date().toLocaleTimeString("ko-KR", { hour:"2-digit", minute:"2-digit", second:"2-digit", timeZone:"Asia/Seoul" });
     const html = buildPage(prices, now);
-
-    return new Response(html, {
-      headers: { "content-type": "text/html;charset=UTF-8" }
-    });
+    return new Response(html, { headers: { "content-type": "text/html;charset=UTF-8" } });
+  },
+ 
+  // ── Cron Trigger: 1분마다 시세 수집 → D1 저장 ──
+  async scheduled(event, env) {
+    const apiKey = env.NEXON_API_KEY;
+    if (!apiKey || !env.MABI_DB) return;
+ 
+    // 테이블 초기화
+    await env.MABI_DB.exec(`
+      CREATE TABLE IF NOT EXISTS prices (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_name TEXT NOT NULL,
+        price INTEGER NOT NULL,
+        recorded_at DATETIME DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_item_time ON prices(item_name, recorded_at);
+    `);
+ 
+    // 수집 대상: 탈농 + 특화 채집 전체
+    const itemSet = new Set([
+      ...Object.values(CATEGORIES).flat(),
+      ...SPECIAL_ITEMS,
+    ]);
+ 
+    // 5개씩 병렬 조회
+    const items = [...itemSet];
+    const priceMap = {};
+    const chunkSize = 5;
+    for (let i = 0; i < items.length; i += chunkSize) {
+      const chunk = items.slice(i, i + chunkSize);
+      const results = await Promise.all(chunk.map(async item => [item, await fetchPrice(item, apiKey)]));
+      results.forEach(([item, price]) => { priceMap[item] = price; });
+    }
+ 
+    // D1 배치 insert
+    const stmt = env.MABI_DB.prepare("INSERT INTO prices (item_name, price) VALUES (?, ?)");
+    const batch = Object.entries(priceMap).map(([item, price]) => stmt.bind(item, price));
+    await env.MABI_DB.batch(batch);
+ 
+    // KV 캐시 갱신
+    if (env.MABI_CACHE) {
+      try {
+        const existing = await env.MABI_CACHE.get("all_prices");
+        const merged = existing ? { ...JSON.parse(existing), ...priceMap } : priceMap;
+        await env.MABI_CACHE.put("all_prices", JSON.stringify(merged));
+      } catch {}
+    }
+ 
+    // 14일 이상 된 데이터 자동 삭제
+    await env.MABI_DB.exec("DELETE FROM prices WHERE recorded_at < datetime('now', '-14 days')");
   }
 };
