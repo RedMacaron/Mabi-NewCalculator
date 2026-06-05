@@ -700,15 +700,19 @@ async function loadGraph() {
   emptyEl.style.display = "none";
   canvas.style.display = "block";
 
-  // 선택된 아이템 전체 병렬 조회
-  const allData = await Promise.all(selected.map(async item => {
-    try {
-      const res = await fetch(\`/api/history?item=\${encodeURIComponent(item)}&hours=\${hours}\`);
-      return { item, rows: await res.json() };
-    } catch { return { item, rows: [] }; }
-  }));
+  // 배치 API로 한 번에 조회 (서브리퀘스트 1회만 사용)
+  let grouped = {};
+  try {
+    const res = await fetch("/api/history/batch", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ items: selected, hours })
+    });
+    grouped = await res.json();
+  } catch { emptyEl.style.display = "block"; canvas.style.display = "none"; return; }
 
-  // 데이터 없으면 안내
+  const allData = selected.map(item => ({ item, rows: grouped[item] || [] }));
+
   if (allData.every(d => !d.rows.length)) {
     emptyEl.style.display = "block"; canvas.style.display = "none"; return;
   }
@@ -804,6 +808,32 @@ export default {
           headers: { "content-type": "application/json", "Access-Control-Allow-Origin": "*" }
         });
       } catch { return new Response(JSON.stringify([]), { headers: { "content-type": "application/json" } }); }
+    }
+
+    // 그래프용 배치 시계열 조회 (아이템 여러 개를 D1 쿼리 한 번으로 처리)
+    if (url.pathname === "/api/history/batch") {
+      if (!env.MABI_DB) return new Response(JSON.stringify({}), { headers: { "content-type": "application/json" } });
+      try {
+        const body = await request.json();
+        const items = body.items || [];
+        const hours = parseInt(body.hours || "24");
+        if (!items.length) return new Response(JSON.stringify({}), { headers: { "content-type": "application/json" } });
+
+        // IN 절로 한 번의 쿼리로 전체 조회
+        const placeholders = items.map(() => "?").join(",");
+        const rows = await env.MABI_DB.prepare(
+          `SELECT item_name, recorded_at, price FROM prices WHERE item_name IN (${placeholders}) AND recorded_at >= datetime('now', '-${hours} hours') ORDER BY item_name, recorded_at ASC`
+        ).bind(...items).all();
+
+        // 아이템별로 그룹핑
+        const grouped = {};
+        items.forEach(item => { grouped[item] = []; });
+        rows.results.forEach(r => { if (grouped[r.item_name]) grouped[r.item_name].push({ recorded_at: r.recorded_at, price: r.price }); });
+
+        return new Response(JSON.stringify(grouped), {
+          headers: { "content-type": "application/json", "Access-Control-Allow-Origin": "*" }
+        });
+      } catch(e) { return new Response(JSON.stringify({}), { headers: { "content-type": "application/json" } }); }
     }
 
     // 메인 페이지
