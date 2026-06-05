@@ -231,7 +231,7 @@ function buildPage(prices, fetchedAt) {
   }).join("");
 
   // 그래프용 체크박스 옵션 생성
-  const farmCats = ["풍요로운 마법의 솥","부드러운 마법의 솥","반짝이는 마법의 솥","섬세한 마법의 솥"];
+  const farmCats = ["기본 생산품","풍요로운 마법의 솥","부드러운 마법의 솥","반짝이는 마법의 솥","섬세한 마법의 솥"];
   const farmGraphItems = farmCats.flatMap(c => CATEGORIES[c]);
   const graphFarmOpts = farmGraphItems.map(item =>
     `<label class="graph-chk"><input type="checkbox" name="graph_item" value="${item}"> ${item.replace("탈틴 농장 ","")}</label>`
@@ -844,6 +844,7 @@ export default {
   },
 
   // ── Cron Trigger: 1분마다 시세 수집 → D1 저장 ──
+  // 탈농(~40개)과 특화(19개)를 번갈아 수집해서 서브리퀘스트 50회 제한 회피
   async scheduled(event, env) {
     const apiKey = env.NEXON_API_KEY;
     if (!apiKey || !env.MABI_DB) return;
@@ -852,18 +853,19 @@ export default {
     await env.MABI_DB.exec(`CREATE TABLE IF NOT EXISTS prices (id INTEGER PRIMARY KEY AUTOINCREMENT, item_name TEXT NOT NULL, price INTEGER NOT NULL, recorded_at DATETIME DEFAULT (datetime('now')))`);
     await env.MABI_DB.exec(`CREATE INDEX IF NOT EXISTS idx_item_time ON prices(item_name, recorded_at)`);
 
-    // 수집 대상: 탈농 + 특화 채집 전체
-    const itemSet = new Set([
-      ...Object.values(CATEGORIES).flat(),
-      ...SPECIAL_ITEMS,
-    ]);
+    // 짝수 분: 탈농 전체, 홀수 분: 특화 채집
+    const minute = new Date().getUTCMinutes();
+    const isEven = minute % 2 === 0;
+
+    const targetItems = isEven
+      ? [...new Set([...Object.values(CATEGORIES).flat()])]
+      : [...SPECIAL_ITEMS];
 
     // 5개씩 병렬 조회
-    const items = [...itemSet];
     const priceMap = {};
     const chunkSize = 5;
-    for (let i = 0; i < items.length; i += chunkSize) {
-      const chunk = items.slice(i, i + chunkSize);
+    for (let i = 0; i < targetItems.length; i += chunkSize) {
+      const chunk = targetItems.slice(i, i + chunkSize);
       const results = await Promise.all(chunk.map(async item => [item, await fetchPrice(item, apiKey)]));
       results.forEach(([item, price]) => { priceMap[item] = price; });
     }
@@ -873,7 +875,7 @@ export default {
     const batch = Object.entries(priceMap).map(([item, price]) => stmt.bind(item, price));
     await env.MABI_DB.batch(batch);
 
-    // KV 캐시 갱신
+    // KV 캐시 갱신 (기존 캐시에 머지)
     if (env.MABI_CACHE) {
       try {
         const existing = await env.MABI_CACHE.get("all_prices");
@@ -882,7 +884,9 @@ export default {
       } catch {}
     }
 
-    // 14일 이상 된 데이터 자동 삭제
-    await env.MABI_DB.exec("DELETE FROM prices WHERE recorded_at < datetime('now', '-14 days')");
+    // 14일 이상 된 데이터 자동 삭제 (짝수 분에만 실행해서 부하 분산)
+    if (isEven) {
+      await env.MABI_DB.exec("DELETE FROM prices WHERE recorded_at < datetime('now', '-14 days')");
+    }
   }
 };
