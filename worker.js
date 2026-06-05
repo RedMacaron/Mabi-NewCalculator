@@ -230,10 +230,14 @@ function buildPage(prices, fetchedAt) {
     return `<div class="item-row" id="spec_row_${safeItemName}">${itemImg(item)}<span>${item}</span><strong id="spec_price_${safeItemName}">${p ? fmt(p)+" G" : "매물없음"}</strong></div>`;
   }).join("");
 
-  // 그래프용 아이템 목록 (탈농 + 특화)
-  const graphItems = [...Object.values(CATEGORIES).flat(), ...SPECIAL_ITEMS];
-  const graphItemOpts = graphItems.map(item =>
-    `<option value="${item}">${item.replace("탈틴 농장 ","")}</option>`
+  // 그래프용 체크박스 옵션 생성
+  const farmCats = ["풍요로운 마법의 솥","부드러운 마법의 솥","반짝이는 마법의 솥","섬세한 마법의 솥"];
+  const farmGraphItems = farmCats.flatMap(c => CATEGORIES[c]);
+  const graphFarmOpts = farmGraphItems.map(item =>
+    `<label class="graph-chk"><input type="checkbox" name="graph_item" value="${item}"> ${item.replace("탈틴 농장 ","")}</label>`
+  ).join("");
+  const graphSpecialOpts = SPECIAL_ITEMS.map(item =>
+    `<label class="graph-chk"><input type="checkbox" name="graph_item" value="${item}"> ${item}</label>`
   ).join("");
 
   return `<!DOCTYPE html>
@@ -321,7 +325,9 @@ tr:hover td { background: rgba(255,255,255,0.03); }
 .multiplier-row { display: flex; align-items: center; gap: 10px; margin: 12px 0; }
 .multiplier-row label { font-size: 13px; }
 .multiplier-row input { width: 80px; background: #3f404d; border: 1px solid var(--border); color: #fff; padding: 6px 10px; border-radius: 6px; font-size: 13px; }
-select { background: #3f404d; border: 1px solid var(--border); color: #fff; padding: 8px 12px; border-radius: 6px; font-size: 13px; }
+.graph-chk { display:inline-flex; align-items:center; gap:4px; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:12px; padding:3px 10px; cursor:pointer; font-size:12px; white-space:nowrap; }
+.graph-chk input { accent-color:var(--accent); }
+.graph-chk:has(input:checked) { background:rgba(0,255,200,0.12); border-color:var(--accent); color:var(--accent); }
 @media (max-width: 700px) {
   .quest-header { grid-template-columns: 1fr 1fr; }
   .ref-grid, .quest-check-grid { grid-template-columns: 1fr; }
@@ -514,8 +520,7 @@ ${questCards}
 <!-- 섹션 8: 시세 변동 그래프 -->
 <h2>📊 시세 변동 추이</h2>
 <p style="color:var(--text2);font-size:13px;margin-bottom:12px;">1분마다 수집 | 최대 14일치 조회 가능 (데이터는 배포 후 1분부터 쌓임)</p>
-<div class="info-bar">
-  <select id="graph-item" style="min-width:200px;">${graphItemOpts}</select>
+<div style="display:flex;gap:10px;margin-bottom:10px;align-items:center;flex-wrap:wrap;">
   <select id="graph-hours">
     <option value="3">최근 3시간</option>
     <option value="6">최근 6시간</option>
@@ -525,10 +530,22 @@ ${questCards}
     <option value="336">최근 14일</option>
   </select>
   <button class="btn-primary" onclick="loadGraph()">📈 조회</button>
+  <button class="btn-secondary" onclick="graphCheckAll(true)">전체 선택</button>
+  <button class="btn-secondary" onclick="graphCheckAll(false)">전체 해제</button>
+</div>
+<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;">
+  <div>
+    <div style="font-size:12px;color:var(--accent);margin-bottom:6px;">🌾 탈틴 농장 (가공품)</div>
+    <div class="graph-check-group" id="graph-checks-farm" style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;max-width:600px;">${graphFarmOpts}</div>
+  </div>
+  <div>
+    <div style="font-size:12px;color:var(--accent);margin-bottom:6px;">💎 특화 채집</div>
+    <div class="graph-check-group" id="graph-checks-special" style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;">${graphSpecialOpts}</div>
+  </div>
 </div>
 <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;">
   <canvas id="priceChart" height="80"></canvas>
-  <p id="graph-empty" style="text-align:center;color:var(--text2);padding:20px;display:none;">데이터가 없습니다. 배포 후 1분이 지나야 데이터가 쌓이기 시작해요.</p>
+  <p id="graph-empty" style="text-align:center;color:var(--text2);padding:20px;display:none;">데이터가 없습니다. 아이템을 선택하고 조회해보세요.</p>
 </div>
 
 <hr>
@@ -660,37 +677,76 @@ async function calcQuests() {
 }
 
 // ── 그래프 ──
+const CHART_COLORS = [
+  "#00ffc8","#ff6b6b","#ffd166","#74b9ff","#a29bfe",
+  "#fd79a8","#55efc4","#fdcb6e","#e17055","#81ecec",
+  "#6c5ce7","#fab1a0","#00cec9","#ff7675","#dfe6e9"
+];
 let chartInstance = null;
+
+function graphCheckAll(val) {
+  document.querySelectorAll('input[name="graph_item"]').forEach(el => el.checked = val);
+}
+
 async function loadGraph() {
-  const item = document.getElementById("graph-item").value;
+  const selected = [...document.querySelectorAll('input[name="graph_item"]:checked')].map(el => el.value);
   const hours = document.getElementById("graph-hours").value;
-  if (!item) return;
-  try {
-    const res = await fetch(\`/api/history?item=\${encodeURIComponent(item)}&hours=\${hours}\`);
-    const data = await res.json();
-    const emptyEl = document.getElementById("graph-empty");
-    const canvas = document.getElementById("priceChart");
-    if (!data.length) { emptyEl.style.display="block"; canvas.style.display="none"; return; }
-    emptyEl.style.display = "none"; canvas.style.display = "block";
-    const labels = data.map(r => {
-      const d = new Date(r.recorded_at + "Z");
-      return d.toLocaleString("ko-KR", { month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", timeZone:"Asia/Seoul" });
-    });
-    const values = data.map(r => r.price);
-    if (chartInstance) chartInstance.destroy();
-    chartInstance = new Chart(canvas, {
-      type: "line",
-      data: { labels, datasets: [{ label: item.replace("탈틴 농장 ",""), data: values, borderColor:"#00ffc8", backgroundColor:"rgba(0,255,200,0.08)", borderWidth:2, pointRadius: data.length>100?0:3, tension:0.3, fill:true }] },
-      options: {
-        responsive: true,
-        plugins: { legend: { labels: { color:"#e0e0e0" } }, tooltip: { callbacks: { label: ctx => ctx.parsed.y.toLocaleString("ko-KR")+" G" } } },
-        scales: {
-          x: { ticks: { color:"#aaa", maxTicksLimit:12 }, grid: { color:"rgba(255,255,255,0.05)" } },
-          y: { ticks: { color:"#aaa", callback: v => v.toLocaleString("ko-KR")+" G" }, grid: { color:"rgba(255,255,255,0.05)" } }
-        }
+  const emptyEl = document.getElementById("graph-empty");
+  const canvas = document.getElementById("priceChart");
+
+  if (!selected.length) { alert("아이템을 하나 이상 선택해주세요!"); return; }
+
+  emptyEl.style.display = "none";
+  canvas.style.display = "block";
+
+  // 선택된 아이템 전체 병렬 조회
+  const allData = await Promise.all(selected.map(async item => {
+    try {
+      const res = await fetch(\`/api/history?item=\${encodeURIComponent(item)}&hours=\${hours}\`);
+      return { item, rows: await res.json() };
+    } catch { return { item, rows: [] }; }
+  }));
+
+  // 데이터 없으면 안내
+  if (allData.every(d => !d.rows.length)) {
+    emptyEl.style.display = "block"; canvas.style.display = "none"; return;
+  }
+
+  // 공통 시간 라벨 (가장 많은 데이터 기준)
+  const longest = allData.reduce((a, b) => a.rows.length > b.rows.length ? a : b);
+  const labels = longest.rows.map(r => {
+    const d = new Date(r.recorded_at + "Z");
+    return d.toLocaleString("ko-KR", { month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", timeZone:"Asia/Seoul" });
+  });
+
+  // 각 아이템 데이터셋 생성
+  const datasets = allData.filter(d => d.rows.length > 0).map((d, i) => ({
+    label: d.item.replace("탈틴 농장 ",""),
+    data: d.rows.map(r => r.price),
+    borderColor: CHART_COLORS[i % CHART_COLORS.length],
+    backgroundColor: "transparent",
+    borderWidth: 2,
+    pointRadius: d.rows.length > 200 ? 0 : 2,
+    tension: 0.3,
+  }));
+
+  if (chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(canvas, {
+    type: "line",
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { labels: { color:"#e0e0e0", boxWidth:12 } },
+        tooltip: { callbacks: { label: ctx => \`\${ctx.dataset.label}: \${ctx.parsed.y.toLocaleString("ko-KR")} G\` } }
+      },
+      scales: {
+        x: { ticks: { color:"#aaa", maxTicksLimit:12 }, grid: { color:"rgba(255,255,255,0.05)" } },
+        y: { ticks: { color:"#aaa", callback: v => v.toLocaleString("ko-KR")+" G" }, grid: { color:"rgba(255,255,255,0.05)" } }
       }
-    });
-  } catch(e) { console.error(e); }
+    }
+  });
 }
 
 // ── 단건 조회 ──
