@@ -328,6 +328,7 @@ tr:hover td { background: rgba(255,255,255,0.03); }
 .graph-chk { display:inline-flex; align-items:center; gap:4px; background:rgba(255,255,255,0.05); border:1px solid var(--border); border-radius:12px; padding:3px 10px; cursor:pointer; font-size:12px; white-space:nowrap; }
 .graph-chk input { accent-color:var(--accent); }
 .graph-chk:has(input:checked) { background:rgba(0,255,200,0.12); border-color:var(--accent); color:var(--accent); }
+select { background: #3f404d; border: 1px solid var(--border); color: #fff; padding: 8px 12px; border-radius: 6px; font-size: 13px; }
 @media (max-width: 700px) {
   .quest-header { grid-template-columns: 1fr 1fr; }
   .ref-grid, .quest-check-grid { grid-template-columns: 1fr; }
@@ -817,16 +818,9 @@ export default {
     const apiKey = env.NEXON_API_KEY;
     if (!apiKey || !env.MABI_DB) return;
 
-    // 테이블 초기화
-    await env.MABI_DB.exec(`
-      CREATE TABLE IF NOT EXISTS prices (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        item_name TEXT NOT NULL,
-        price INTEGER NOT NULL,
-        recorded_at DATETIME DEFAULT (datetime('now'))
-      );
-      CREATE INDEX IF NOT EXISTS idx_item_time ON prices(item_name, recorded_at);
-    `);
+    // 테이블 초기화 (문장 분리)
+    await env.MABI_DB.exec(`CREATE TABLE IF NOT EXISTS prices (id INTEGER PRIMARY KEY AUTOINCREMENT, item_name TEXT NOT NULL, price INTEGER NOT NULL, recorded_at DATETIME DEFAULT (datetime('now')))`);
+    await env.MABI_DB.exec(`CREATE INDEX IF NOT EXISTS idx_item_time ON prices(item_name, recorded_at)`);
 
     // 수집 대상: 탈농 + 특화 채집 전체
     const itemSet = new Set([
