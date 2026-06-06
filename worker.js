@@ -741,7 +741,7 @@ async function loadGraph() {
   const tooltipEl = document.getElementById("chart-tooltip") || (() => {
     const el = document.createElement("div");
     el.id = "chart-tooltip";
-    el.style.cssText = "position:fixed;background:#1e2130;border:1px solid #4a4d5e;border-radius:8px;padding:10px 14px;font-size:12px;color:#e0e0e0;pointer-events:none;z-index:9999;max-height:300px;overflow-y:auto;min-width:200px;display:none;";
+    el.style.cssText = "position:fixed;background:#1e2130;border:1px solid #4a4d5e;border-radius:8px;padding:10px 14px;font-size:12px;color:#e0e0e0;pointer-events:auto;z-index:9999;max-height:400px;overflow-y:scroll;min-width:220px;display:none;scrollbar-width:thin;scrollbar-color:#4a4d5e #1e2130;";
     document.body.appendChild(el);
     return el;
   })();
@@ -759,12 +759,17 @@ async function loadGraph() {
           external(context) {
             const { chart, tooltip } = context;
             if (tooltip.opacity === 0) { tooltipEl.style.display = "none"; return; }
-            const lines = tooltip.dataPoints.map(p =>
-              \`<div style="display:flex;justify-content:space-between;gap:16px;padding:2px 0;">
-                <span style="color:\${p.dataset.borderColor}">● \${p.dataset.label}</span>
-                <span style="font-weight:bold;">\${p.parsed.y.toLocaleString("ko-KR")} G</span>
-              </div>\`
-            ).join("");
+            // 전체 데이터셋에서 해당 인덱스 값 직접 추출 (개수 제한 없음)
+            const idx = tooltip.dataPoints[0]?.dataIndex;
+            const title = tooltip.title[0] || "";
+            const lines = chart.data.datasets.map((ds, i) => {
+              const val = ds.data[idx];
+              if (val === undefined || val === null) return "";
+              return \`<div style="display:flex;justify-content:space-between;gap:16px;padding:2px 0;">
+                <span style="color:\${ds.borderColor}">● \${ds.label}</span>
+                <span style="font-weight:bold;">\${val.toLocaleString("ko-KR")} G</span>
+              </div>\`;
+            }).filter(Boolean).join("");
             tooltipEl.innerHTML = \`<div style="font-size:11px;color:#aaa;margin-bottom:6px;">\${tooltip.title[0]}</div>\${lines}\`;
             tooltipEl.style.display = "block";
             // 화면 경계 고려한 위치 계산
