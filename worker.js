@@ -736,6 +736,16 @@ async function loadGraph() {
   }));
 
   if (chartInstance) chartInstance.destroy();
+
+  // 커스텀 외부 툴팁 (스크롤 가능)
+  const tooltipEl = document.getElementById("chart-tooltip") || (() => {
+    const el = document.createElement("div");
+    el.id = "chart-tooltip";
+    el.style.cssText = "position:fixed;background:#1e2130;border:1px solid #4a4d5e;border-radius:8px;padding:10px 14px;font-size:12px;color:#e0e0e0;pointer-events:none;z-index:9999;max-height:300px;overflow-y:auto;min-width:200px;display:none;";
+    document.body.appendChild(el);
+    return el;
+  })();
+
   chartInstance = new Chart(canvas, {
     type: "line",
     data: { labels, datasets },
@@ -744,7 +754,29 @@ async function loadGraph() {
       interaction: { mode: "index", intersect: false },
       plugins: {
         legend: { labels: { color:"#e0e0e0", boxWidth:12 } },
-        tooltip: { callbacks: { label: ctx => \`\${ctx.dataset.label}: \${ctx.parsed.y.toLocaleString("ko-KR")} G\` } }
+        tooltip: {
+          enabled: false,
+          external(context) {
+            const { chart, tooltip } = context;
+            if (tooltip.opacity === 0) { tooltipEl.style.display = "none"; return; }
+            const lines = tooltip.dataPoints.map(p =>
+              \`<div style="display:flex;justify-content:space-between;gap:16px;padding:2px 0;">
+                <span style="color:\${p.dataset.borderColor}">● \${p.dataset.label}</span>
+                <span style="font-weight:bold;">\${p.parsed.y.toLocaleString("ko-KR")} G</span>
+              </div>\`
+            ).join("");
+            tooltipEl.innerHTML = \`<div style="font-size:11px;color:#aaa;margin-bottom:6px;">\${tooltip.title[0]}</div>\${lines}\`;
+            tooltipEl.style.display = "block";
+            // 화면 경계 고려한 위치 계산
+            const canvasRect = chart.canvas.getBoundingClientRect();
+            let x = canvasRect.left + tooltip.caretX + 12;
+            let y = canvasRect.top + tooltip.caretY - 10;
+            if (x + 220 > window.innerWidth) x = canvasRect.left + tooltip.caretX - 220;
+            if (y + 320 > window.innerHeight) y = window.innerHeight - 320;
+            tooltipEl.style.left = x + "px";
+            tooltipEl.style.top = y + "px";
+          }
+        }
       },
       scales: {
         x: { ticks: { color:"#aaa", maxTicksLimit:12 }, grid: { color:"rgba(255,255,255,0.05)" } },
