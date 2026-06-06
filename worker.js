@@ -735,17 +735,16 @@ async function loadGraph() {
     tension: 0.3,
   }));
 
+  // 고정 툴팁 패널 (차트 아래 고정, 스크롤 가능)
+  let tooltipEl = document.getElementById("chart-tooltip");
+  if (!tooltipEl) {
+    tooltipEl = document.createElement("div");
+    tooltipEl.id = "chart-tooltip";
+    tooltipEl.style.cssText = "display:none;background:#1e2130;border:1px solid #4a4d5e;border-radius:8px;padding:10px 14px;font-size:12px;color:#e0e0e0;max-height:400px;overflow-y:auto;min-width:220px;scrollbar-width:thin;scrollbar-color:#4a4d5e #1e2130;margin-top:8px;";
+    canvas.parentNode.insertAdjacentElement("afterend", tooltipEl);
+  }
+
   if (chartInstance) chartInstance.destroy();
-
-  // 커스텀 외부 툴팁 (스크롤 가능)
-  const tooltipEl = document.getElementById("chart-tooltip") || (() => {
-    const el = document.createElement("div");
-    el.id = "chart-tooltip";
-    el.style.cssText = "position:fixed;background:#1e2130;border:1px solid #4a4d5e;border-radius:8px;padding:10px 14px;font-size:12px;color:#e0e0e0;pointer-events:auto;z-index:9999;max-height:400px;overflow-y:scroll;min-width:220px;display:none;scrollbar-width:thin;scrollbar-color:#4a4d5e #1e2130;";
-    document.body.appendChild(el);
-    return el;
-  })();
-
   chartInstance = new Chart(canvas, {
     type: "line",
     data: { labels, datasets },
@@ -758,11 +757,10 @@ async function loadGraph() {
           enabled: false,
           external(context) {
             const { chart, tooltip } = context;
-            if (tooltip.opacity === 0) { tooltipEl.style.display = "none"; return; }
-            // 전체 데이터셋에서 해당 인덱스 값 직접 추출 (개수 제한 없음)
+            if (tooltip.opacity === 0) return;
             const idx = tooltip.dataPoints[0]?.dataIndex;
             const title = tooltip.title[0] || "";
-            const lines = chart.data.datasets.map((ds, i) => {
+            const lines = chart.data.datasets.map(ds => {
               const val = ds.data[idx];
               if (val === undefined || val === null) return "";
               return \`<div style="display:flex;justify-content:space-between;gap:16px;padding:2px 0;">
@@ -770,16 +768,8 @@ async function loadGraph() {
                 <span style="font-weight:bold;">\${val.toLocaleString("ko-KR")} G</span>
               </div>\`;
             }).filter(Boolean).join("");
-            tooltipEl.innerHTML = \`<div style="font-size:11px;color:#aaa;margin-bottom:6px;">\${tooltip.title[0]}</div>\${lines}\`;
             tooltipEl.style.display = "block";
-            // 화면 경계 고려한 위치 계산
-            const canvasRect = chart.canvas.getBoundingClientRect();
-            let x = canvasRect.left + tooltip.caretX + 12;
-            let y = canvasRect.top + tooltip.caretY - 10;
-            if (x + 220 > window.innerWidth) x = canvasRect.left + tooltip.caretX - 220;
-            if (y + 320 > window.innerHeight) y = window.innerHeight - 320;
-            tooltipEl.style.left = x + "px";
-            tooltipEl.style.top = y + "px";
+            tooltipEl.innerHTML = \`<div style="font-size:11px;color:#aaa;margin-bottom:6px;font-weight:bold;">\${title}</div>\${lines}\`;
           }
         }
       },
