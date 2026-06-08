@@ -422,8 +422,6 @@ ${questCards}
       <p>탈틴 농장 달콤 케이크 <strong>3개</strong></p><p>탈틴 농장 레드문 귀걸이 <strong>3개</strong></p>
       <p>탈틴 농장 천연 고무 <strong>3개</strong></p><p>탈틴 농장 재스민 향수 <strong>2개</strong></p>
       <p>탈틴 농장 장식용 크리스탈 검 <strong>2개</strong></p>
-      <p>남동판 <strong>2개</strong></p><p>백연판 <strong>2개</strong></p>
-      <p>산딸기 크림 소스 박스 <strong>2개</strong></p><p>루멘 시럽 <strong>2개</strong></p>
     </div>
   </div>
 </div>
