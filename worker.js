@@ -844,13 +844,23 @@ export default {
         const hours = parseInt(body.hours || "24");
         if (!items.length) return new Response(JSON.stringify({}), { headers: { "content-type": "application/json" } });
 
-        // IN 절로 한 번의 쿼리로 전체 조회
+        // 기간별 샘플링 간격 (읽기 행 수 절감)
+        // 3시간/6시간: 매 포인트, 24시간: 5분마다 1개, 3일: 15분마다, 7일: 30분마다, 14일: 1시간마다
+        let interval = 3; // 기본 3분 (Cron 주기)
+        if (hours >= 336) interval = 60;
+        else if (hours >= 168) interval = 30;
+        else if (hours >= 72) interval = 15;
+        else if (hours >= 24) interval = 6;
+
         const placeholders = items.map(() => "?").join(",");
         const rows = await env.MABI_DB.prepare(
-          `SELECT item_name, recorded_at, price FROM prices WHERE item_name IN (${placeholders}) AND recorded_at >= datetime('now', '-${hours} hours') ORDER BY item_name, recorded_at ASC`
+          `SELECT item_name, recorded_at, price FROM prices
+           WHERE item_name IN (${placeholders})
+             AND recorded_at >= datetime('now', '-${hours} hours')
+             AND CAST(strftime('%M', recorded_at) AS INTEGER) % ${interval} = 0
+           ORDER BY item_name, recorded_at ASC`
         ).bind(...items).all();
 
-        // 아이템별로 그룹핑
         const grouped = {};
         items.forEach(item => { grouped[item] = []; });
         rows.results.forEach(r => { if (grouped[r.item_name]) grouped[r.item_name].push({ recorded_at: r.recorded_at, price: r.price }); });
@@ -909,8 +919,10 @@ export default {
       } catch {}
     }
 
-    // 14일 이상 된 데이터 자동 삭제 (짝수 분에만 실행해서 부하 분산)
-    if (isEven) {
+    // 14일 이상 된 데이터 자동 삭제 — 매일 자정(UTC 0시)에만 실행
+    const utcHour = new Date().getUTCHours();
+    const utcMinute = new Date().getUTCMinutes();
+    if (utcHour === 0 && utcMinute < 3) {
       await env.MABI_DB.exec("DELETE FROM prices WHERE recorded_at < datetime('now', '-14 days')");
     }
   }
