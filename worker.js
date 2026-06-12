@@ -261,8 +261,6 @@ h3 { font-size: 15px; color: var(--accent); margin: 16px 0 8px; }
 .info-bar { display:flex; align-items:center; gap:12px; margin-bottom:12px; font-size:12px; color:var(--text2); flex-wrap:wrap; }
 .refresh-btn { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
 .refresh-btn:hover { background: var(--border); }
-.special-refresh-btn { background: #1f3d37; border: 1px solid var(--accent); color: var(--accent); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold; }
-.special-refresh-btn:hover { background: var(--accent); color: #000; }
 hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
 .quest-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
 .quest-header { display: grid; grid-template-columns: 3fr 1fr 1.5fr 1.5fr; gap: 12px; padding: 12px 16px; align-items: start; }
@@ -491,10 +489,7 @@ ${questCards}
 
 <!-- 섹션 6: 특화 채집 -->
 <h2>💎 특화 채집 실시간 시세</h2>
-<div class="info-bar">
-  <button class="special-refresh-btn" id="btn-special-refresh" onclick="refreshSpecialClient()">⚡ 특화채집 시세만 새로고침</button>
-  <span id="special-status-text">특화채집은 위 버튼을 누를 때만 실시간 갱신됩니다.</span>
-</div>
+<div class="info-bar"><span>경매장 최저가 기준 | 조회: ${fetchedAt}</span></div>
 <div class="grid-4">${specialHtml}</div>
 
 <hr>
@@ -588,29 +583,6 @@ function updateSim(simBody) {
   if (profitEl) { profitEl.textContent = label; profitEl.style.color = color; }
 }
 document.querySelectorAll(".sim-body").forEach(updateSim);
-
-// ── 특화 채집 새로고침 ──
-async function refreshSpecialClient() {
-  const btn = document.getElementById("btn-special-refresh");
-  const status = document.getElementById("special-status-text");
-  btn.disabled = true;
-  btn.innerText = "🔄 수집 중...";
-  status.innerText = "특화 채집 19종 시세 수집 중...";
-  try {
-    const res = await fetch("/api/refresh-special");
-    if (res.ok) {
-      const newPrices = await res.json();
-      Object.assign(PRICES, newPrices);
-      for (const [item, price] of Object.entries(newPrices)) {
-        const safeId = item.replace(/[^a-zA-Z0-9가-힣]/g, "_");
-        const el = document.getElementById("spec_price_" + safeId);
-        if (el) el.innerText = price ? fmt(price) + " G" : "매물없음";
-      }
-      status.innerText = "✨ 갱신 완료!";
-    } else { status.innerText = "❌ 서버 오류"; }
-  } catch { status.innerText = "❌ 네트워크 오류"; }
-  finally { btn.disabled = false; btn.innerText = "⚡ 특화채집 시세만 새로고침"; }
-}
 
 // ── 장바구니 ──
 let cart = JSON.parse(localStorage.getItem("mabi_cart") || "[]");
