@@ -878,22 +878,22 @@ export default {
     return new Response(html, { headers: { "content-type": "text/html;charset=UTF-8" } });
   },
 
-  // ── Cron Trigger: 1분마다 시세 수집 → D1 저장 ──
-  // 탈농(~40개)과 특화(19개)를 번갈아 수집해서 서브리퀘스트 50회 제한 회피
+  // ── Cron Trigger: 2분마다 시세 수집 → D1 저장 ──
+  // 탈농 앞쪽(~20개) / 탈농 뒤쪽(~21개) / 특화(19개) 3그룹 순환으로 CPU 10ms 제한 회피
   async scheduled(event, env) {
     const apiKey = env.NEXON_API_KEY;
     if (!apiKey || !env.MABI_DB) return;
 
-    // 테이블 초기화 (문장 분리)
-    await env.MABI_DB.exec(`CREATE TABLE IF NOT EXISTS prices (id INTEGER PRIMARY KEY AUTOINCREMENT, item_name TEXT NOT NULL, price INTEGER NOT NULL, recorded_at DATETIME DEFAULT (datetime('now')))`);
-    await env.MABI_DB.exec(`CREATE INDEX IF NOT EXISTS idx_item_time ON prices(item_name, recorded_at)`);
-
-    // 짝수 분: 탈농 전체, 홀수 분: 특화 채집
+    // 3그룹 순환: (minute/2) % 3 → 0, 1, 2
     const minute = new Date().getUTCMinutes();
-    const isEven = minute % 2 === 0;
+    const group = Math.floor(minute / 2) % 3;
 
-    const targetItems = isEven
-      ? [...new Set([...Object.values(CATEGORIES).flat()])]
+    const farmItems = [...new Set([...Object.values(CATEGORIES).flat()])];
+    const half = Math.ceil(farmItems.length / 2);
+    const targetItems = group === 0
+      ? farmItems.slice(0, half)
+      : group === 1
+      ? farmItems.slice(half)
       : [...SPECIAL_ITEMS];
 
     // 5개씩 병렬 조회
