@@ -74,6 +74,29 @@ const SPECIAL_ITEMS = [
   "월광 당근","백연석","마력 심재핵","빛나는 양털"
 ];
 
+const POT_RECIPES = {
+  "탈틴 농장 블랙베리 주스":      { "탈틴 농장 일반 블랙베리":1, "탈틴 농장 일반 재스민":1 },
+  "탈틴 농장 달콤 케이크":        { "탈틴 농장 일반 블랙베리":1, "탈틴 농장 일반 붉은 배":1 },
+  "탈틴 농장 붉은 배 잼":         { "탈틴 농장 일반 오크라":1, "탈틴 농장 일반 붉은 배":1 },
+  "탈틴 농장 별무늬 샐러드":      { "탈틴 농장 일반 블랙베리":1, "탈틴 농장 일반 오크라":2, "탈틴 농장 일반 붉은 배":1 },
+  "탈틴 농장 재스민 향수":        { "탈틴 농장 일반 블랙베리":1, "탈틴 농장 일반 오크라":1, "탈틴 농장 일반 재스민":2 },
+  "탈틴 농장 자색 원단":          { "탈틴 농장 일반 블랙베리":1, "탈틴 농장 일반 마법 거미줄":1 },
+  "탈틴 농장 꽃무늬 원피스":      { "탈틴 농장 일반 재스민":1, "탈틴 농장 일반 마법 거미줄":1 },
+  "탈틴 농장 방수 원단":          { "탈틴 농장 일반 고무":1, "탈틴 농장 일반 마법 거미줄":1 },
+  "탈틴 농장 강화 섬유":          { "탈틴 농장 일반 오크라":1, "탈틴 농장 일반 고무":1, "탈틴 농장 일반 마법 거미줄":2 },
+  "탈틴 농장 이브닝 드레스":      { "탈틴 농장 일반 재스민":1, "탈틴 농장 일반 마법 거미줄":2, "탈틴 농장 일반 석영":1 },
+  "탈틴 농장 레드문 귀걸이":      { "탈틴 농장 일반 붉은 배":1, "탈틴 농장 일반 석영":1 },
+  "탈틴 농장 퓨어 블러썸 머리핀": { "탈틴 농장 일반 재스민":1, "탈틴 농장 일반 석영":1 },
+  "탈틴 농장 석영 파우더":        { "탈틴 농장 일반 마법 거미줄":1, "탈틴 농장 일반 석영":1 },
+  "탈틴 농장 미드나잇 펄 페인트": { "탈틴 농장 일반 블랙베리":1, "탈틴 농장 일반 고무":1, "탈틴 농장 일반 석영":2 },
+  "탈틴 농장 장식용 크리스탈 검": { "탈틴 농장 일반 오크라":1, "탈틴 농장 일반 고무":1, "탈틴 농장 일반 석영":2 },
+  "탈틴 농장 강력 접착제":        { "탈틴 농장 일반 고무":1, "탈틴 농장 일반 마법 거미줄":1 },
+  "탈틴 농장 천연 고무":          { "탈틴 농장 일반 오크라":1, "탈틴 농장 일반 고무":1 },
+  "탈틴 농장 누름꽃 공예 함":     { "탈틴 농장 일반 재스민":1, "탈틴 농장 일반 고무":1 },
+  "탈틴 농장 황혼의 류트":        { "탈틴 농장 일반 블랙베리":1, "탈틴 농장 일반 재스민":1, "탈틴 농장 일반 붉은 배":2 },
+  "탈틴 농장 새벽의 활":          { "탈틴 농장 일반 오크라":1, "탈틴 농장 일반 붉은 배":2, "탈틴 농장 일반 석영":1 },
+};
+
 // ── API 헬퍼 ───────────────────────────────────────────────
 async function fetchPrice(itemName, apiKey) {
   const url = `https://open.api.nexon.com/mabinogi/v1/auction/list?item_name=${encodeURIComponent(itemName)}`;
@@ -221,7 +244,18 @@ function buildPage(prices, fetchedAt) {
 
   const makeCatHtml = (catName) => CATEGORIES[catName].map(item => {
     const p = prices[item] || 0;
-    return `<div class="item-row">${itemImg(item)}<span>${item.replace("탈틴 농장 ","")}</span><strong>${fmt(p)} G</strong></div>`;
+    const recipe = POT_RECIPES[item];
+    let profitHtml = "";
+    if (recipe && p > 0) {
+      const matCost = Object.entries(recipe).reduce((sum, [mat, qty]) => sum + (prices[mat] || 0) * qty, 0);
+      if (matCost > 0) {
+        const diff = p - matCost;
+        const color = diff > 0 ? "#00ffc8" : diff < 0 ? "#ff6b6b" : "#ffd166";
+        const sign = diff > 0 ? "+" : "";
+        profitHtml = `<span style="color:${color};font-size:12px;white-space:nowrap;margin-left:6px;">${sign}${fmt(diff)} G</span>`;
+      }
+    }
+    return `<div class="item-row">${itemImg(item)}<span>${item.replace("탈틴 농장 ","")}</span><strong>${fmt(p)} G</strong>${profitHtml}</div>`;
   }).join("");
 
   const specialHtml = SPECIAL_ITEMS.map(item => {
