@@ -45,6 +45,19 @@ const CATEGORIES = {
 };
 
 const DELIVERY_QUESTS = [
+  { name:"석영 집중 주문",              limit:7, materials:{"탈틴 농장 일반 석영":3}, keyOnly:true },
+  { name:"마법 거미줄 집중 주문",       limit:7, materials:{"탈틴 농장 일반 마법 거미줄":3}, keyOnly:true },
+  { name:"고무 집중 주문",              limit:7, materials:{"탈틴 농장 일반 고무":6}, keyOnly:true },
+  { name:"붉은 배 집중 주문",           limit:7, materials:{"탈틴 농장 일반 붉은 배":6}, keyOnly:true },
+  { name:"재스민 집중 주문",            limit:9, materials:{"탈틴 농장 일반 재스민":9}, upgOnly:true },
+  { name:"오크라 집중 주문",            limit:9, materials:{"탈틴 농장 일반 오크라":12}, upgOnly:true },
+  { name:"블랙베리 집중 주문",          limit:10, materials:{"탈틴 농장 일반 블랙베리":18}, upgOnly:true },
+  { name:"코리브 계곡 여행 가이드의 주문", limit:3, materials:{"탈틴 농장 자색 원단":2,"탈틴 농장 강력 접착제":2}, keyOnly:true },
+  { name:"탈틴 화가의 주문",            limit:3, materials:{"탈틴 농장 블랙베리 주스":2,"탈틴 농장 레드문 귀걸이":2}, keyOnly:true },
+  { name:"티르 코네일 주민의 주문",     limit:10, materials:{"탈틴 농장 일반 고무":3,"탈틴 농장 일반 블랙베리":6}, upgOnly:true },
+  { name:"반호르 대장장이의 주문",      limit:10, materials:{"탈틴 농장 일반 붉은 배":2,"탈틴 농장 일반 석영":2}, upgOnly:true },
+  { name:"드래곤 유적 고고학자의 주문", limit:10, materials:{"탈틴 농장 일반 오크라":4,"탈틴 농장 일반 마법 거미줄":2}, upgOnly:true },
+  { name:"던바튼 학교 선생님의 주문",   limit:10, materials:{"탈틴 농장 일반 블랙베리":7,"탈틴 농장 일반 재스민":5}, upgOnly:true },
   { name:"두갈드 아일 목수의 주문",      limit:7, materials:{"탈틴 농장 일반 블랙베리":1,"탈틴 농장 자색 원단":2,"탈틴 농장 붉은 배 잼":2} },
   { name:"슬리아브 퀼린 광부의 주문",    limit:7, materials:{"탈틴 농장 일반 오크라":1,"탈틴 농장 강력 접착제":1,"탈틴 농장 방수 원단":2} },
   { name:"레자르 양조장 관리인의 주문",  limit:7, materials:{"탈틴 농장 일반 재스민":2,"탈틴 농장 레드문 귀걸이":2,"탈틴 농장 달콤 케이크":1} },
@@ -61,19 +74,7 @@ const DELIVERY_QUESTS = [
   { name:"케안 항구 무역 사무원의 주문", limit:5, materials:{"탈틴 농장 별무늬 샐러드":2,"탈틴 농장 새벽의 활":2,"탈틴 농장 이브닝 드레스":2}, rewardRange:[1,3] },
   { name:"아브네아 상점가 점원의 주문",  limit:5, materials:{"탈틴 농장 강화 섬유":2,"탈틴 농장 장식용 크리스탈 검":2,"탈틴 농장 황혼의 류트":2}, rewardRange:[1,3] },
   { name:"타라 '큰손'의 주문",           limit:5, materials:{"탈틴 농장 이브닝 드레스":2,"탈틴 농장 미드나잇 펄 페인트":2,"탈틴 농장 재스민 향수":2}, rewardRange:[1,3] },
-  { name:"석영 집중 주문",              limit:7, materials:{"탈틴 농장 일반 석영":3}, keyOnly:true },
-  { name:"마법 거미줄 집중 주문",       limit:7, materials:{"탈틴 농장 일반 마법 거미줄":3}, keyOnly:true },
-  { name:"고무 집중 주문",              limit:7, materials:{"탈틴 농장 일반 고무":6}, keyOnly:true },
-  { name:"붉은 배 집중 주문",           limit:7, materials:{"탈틴 농장 일반 붉은 배":6}, keyOnly:true },
-  { name:"재스민 집중 주문",            limit:9, materials:{"탈틴 농장 일반 재스민":9}, upgOnly:true },
-  { name:"오크라 집중 주문",            limit:9, materials:{"탈틴 농장 일반 오크라":12}, upgOnly:true },
-  { name:"블랙베리 집중 주문",          limit:10, materials:{"탈틴 농장 일반 블랙베리":18}, upgOnly:true },
-  { name:"코리브 계곡 여행 가이드의 주문", limit:3, materials:{"탈틴 농장 자색 원단":2,"탈틴 농장 강력 접착제":2}, keyOnly:true },
-  { name:"탈틴 화가의 주문",            limit:3, materials:{"탈틴 농장 블랙베리 주스":2,"탈틴 농장 레드문 귀걸이":2}, keyOnly:true },
-  { name:"티르 코네일 주민의 주문",     limit:10, materials:{"탈틴 농장 일반 고무":3,"탈틴 농장 일반 블랙베리":6}, upgOnly:true },
-  { name:"반호르 대장장이의 주문",      limit:10, materials:{"탈틴 농장 일반 붉은 배":2,"탈틴 농장 일반 석영":2}, upgOnly:true },
-  { name:"드래곤 유적 고고학자의 주문", limit:10, materials:{"탈틴 농장 일반 오크라":4,"탈틴 농장 일반 마법 거미줄":2}, upgOnly:true },
-  { name:"던바튼 학교 선생님의 주문",   limit:10, materials:{"탈틴 농장 일반 블랙베리":7,"탈틴 농장 일반 재스민":5}, upgOnly:true },
+  { name:"라흐 왕성 시종의 주문",        limit:5, materials:{"탈틴 농장 재스민 향수":2,"탈틴 농장 장식용 크리스탈 검":2,"탈틴 농장 새벽의 활":2}, rewardRange:[1,3] },
 ];
 
 const UPGRADE_ITEMS = { "벽돌":10000, "철판":20000, "도료":30000, "유리":40000 };
