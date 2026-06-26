@@ -61,7 +61,19 @@ const DELIVERY_QUESTS = [
   { name:"케안 항구 무역 사무원의 주문", limit:5, materials:{"탈틴 농장 별무늬 샐러드":2,"탈틴 농장 새벽의 활":2,"탈틴 농장 이브닝 드레스":2}, rewardRange:[1,3] },
   { name:"아브네아 상점가 점원의 주문",  limit:5, materials:{"탈틴 농장 강화 섬유":2,"탈틴 농장 장식용 크리스탈 검":2,"탈틴 농장 황혼의 류트":2}, rewardRange:[1,3] },
   { name:"타라 '큰손'의 주문",           limit:5, materials:{"탈틴 농장 이브닝 드레스":2,"탈틴 농장 미드나잇 펄 페인트":2,"탈틴 농장 재스민 향수":2}, rewardRange:[1,3] },
-  { name:"라흐 왕성 시종의 주문",        limit:5, materials:{"탈틴 농장 재스민 향수":2,"탈틴 농장 장식용 크리스탈 검":2,"탈틴 농장 새벽의 활":2}, rewardRange:[1,3] },
+  { name:"석영 집중 주문",              limit:7, materials:{"탈틴 농장 일반 석영":3}, keyOnly:true },
+  { name:"마법 거미줄 집중 주문",       limit:7, materials:{"탈틴 농장 일반 마법 거미줄":3}, keyOnly:true },
+  { name:"고무 집중 주문",              limit:7, materials:{"탈틴 농장 일반 고무":6}, keyOnly:true },
+  { name:"붉은 배 집중 주문",           limit:7, materials:{"탈틴 농장 일반 붉은 배":6}, keyOnly:true },
+  { name:"재스민 집중 주문",            limit:9, materials:{"탈틴 농장 일반 재스민":9}, upgOnly:true },
+  { name:"오크라 집중 주문",            limit:9, materials:{"탈틴 농장 일반 오크라":12}, upgOnly:true },
+  { name:"블랙베리 집중 주문",          limit:10, materials:{"탈틴 농장 일반 블랙베리":18}, upgOnly:true },
+  { name:"코리브 계곡 여행 가이드의 주문", limit:3, materials:{"탈틴 농장 자색 원단":2,"탈틴 농장 강력 접착제":2}, keyOnly:true },
+  { name:"탈틴 화가의 주문",            limit:3, materials:{"탈틴 농장 블랙베리 주스":2,"탈틴 농장 레드문 귀걸이":2}, keyOnly:true },
+  { name:"티르 코네일 주민의 주문",     limit:10, materials:{"탈틴 농장 일반 고무":3,"탈틴 농장 일반 블랙베리":6}, upgOnly:true },
+  { name:"반호르 대장장이의 주문",      limit:10, materials:{"탈틴 농장 일반 붉은 배":2,"탈틴 농장 일반 석영":2}, upgOnly:true },
+  { name:"드래곤 유적 고고학자의 주문", limit:10, materials:{"탈틴 농장 일반 오크라":4,"탈틴 농장 일반 마법 거미줄":2}, upgOnly:true },
+  { name:"던바튼 학교 선생님의 주문",   limit:10, materials:{"탈틴 농장 일반 블랙베리":7,"탈틴 농장 일반 재스민":5}, upgOnly:true },
 ];
 
 const UPGRADE_ITEMS = { "벽돌":10000, "철판":20000, "도료":30000, "유리":40000 };
@@ -73,29 +85,6 @@ const SPECIAL_ITEMS = [
   "적철석","신비한 깃털","루멘 플랜트","힐웬 광정","실리엔 응축핵",
   "월광 당근","백연석","마력 심재핵","빛나는 양털"
 ];
-
-const POT_RECIPES = {
-  "탈틴 농장 블랙베리 주스":      { "탈틴 농장 일반 블랙베리":1, "탈틴 농장 일반 재스민":1 },
-  "탈틴 농장 달콤 케이크":        { "탈틴 농장 일반 블랙베리":1, "탈틴 농장 일반 붉은 배":1 },
-  "탈틴 농장 붉은 배 잼":         { "탈틴 농장 일반 오크라":1, "탈틴 농장 일반 붉은 배":1 },
-  "탈틴 농장 별무늬 샐러드":      { "탈틴 농장 일반 블랙베리":1, "탈틴 농장 일반 오크라":2, "탈틴 농장 일반 붉은 배":1 },
-  "탈틴 농장 재스민 향수":        { "탈틴 농장 일반 블랙베리":1, "탈틴 농장 일반 오크라":1, "탈틴 농장 일반 재스민":2 },
-  "탈틴 농장 자색 원단":          { "탈틴 농장 일반 블랙베리":1, "탈틴 농장 일반 마법 거미줄":1 },
-  "탈틴 농장 꽃무늬 원피스":      { "탈틴 농장 일반 재스민":1, "탈틴 농장 일반 마법 거미줄":1 },
-  "탈틴 농장 방수 원단":          { "탈틴 농장 일반 고무":1, "탈틴 농장 일반 마법 거미줄":1 },
-  "탈틴 농장 강화 섬유":          { "탈틴 농장 일반 오크라":1, "탈틴 농장 일반 고무":1, "탈틴 농장 일반 마법 거미줄":2 },
-  "탈틴 농장 이브닝 드레스":      { "탈틴 농장 일반 재스민":1, "탈틴 농장 일반 마법 거미줄":2, "탈틴 농장 일반 석영":1 },
-  "탈틴 농장 레드문 귀걸이":      { "탈틴 농장 일반 붉은 배":1, "탈틴 농장 일반 석영":1 },
-  "탈틴 농장 퓨어 블러썸 머리핀": { "탈틴 농장 일반 재스민":1, "탈틴 농장 일반 석영":1 },
-  "탈틴 농장 석영 파우더":        { "탈틴 농장 일반 마법 거미줄":1, "탈틴 농장 일반 석영":1 },
-  "탈틴 농장 미드나잇 펄 페인트": { "탈틴 농장 일반 블랙베리":1, "탈틴 농장 일반 고무":1, "탈틴 농장 일반 석영":2 },
-  "탈틴 농장 장식용 크리스탈 검": { "탈틴 농장 일반 오크라":1, "탈틴 농장 일반 고무":1, "탈틴 농장 일반 석영":2 },
-  "탈틴 농장 강력 접착제":        { "탈틴 농장 일반 고무":1, "탈틴 농장 일반 마법 거미줄":1 },
-  "탈틴 농장 천연 고무":          { "탈틴 농장 일반 오크라":1, "탈틴 농장 일반 고무":1 },
-  "탈틴 농장 누름꽃 공예 함":     { "탈틴 농장 일반 재스민":1, "탈틴 농장 일반 고무":1 },
-  "탈틴 농장 황혼의 류트":        { "탈틴 농장 일반 블랙베리":1, "탈틴 농장 일반 재스민":1, "탈틴 농장 일반 붉은 배":2 },
-  "탈틴 농장 새벽의 활":          { "탈틴 농장 일반 오크라":1, "탈틴 농장 일반 붉은 배":2, "탈틴 농장 일반 석영":1 },
-};
 
 // ── API 헬퍼 ───────────────────────────────────────────────
 async function fetchPrice(itemName, apiKey) {
@@ -173,21 +162,38 @@ function buildPage(prices, fetchedAt) {
     const missing = Object.keys(q.materials).filter(k => !prices[k]);
     const range = q.rewardRange || [1,1];
     const isFixed = range[0] === range[1];
-    const rangeLabel = isFixed ? "열쇠·업템 각 1개 고정" : `열쇠 ${range[0]} ~ ${range[1]}개 / 업템 ${range[0]} ~ ${range[1]}개`;
+    const keyOnly = !!q.keyOnly;   // 열쇠만 보상
+    const upgOnly = !!q.upgOnly;   // 업그레이드 템만 보상
+
+    let rangeLabel = "";
+    if (keyOnly) rangeLabel = "열쇠 1개 고정";
+    else if (upgOnly) rangeLabel = "업그레이드 템 1개";
+    else if (isFixed) rangeLabel = "열쇠·업템 각 1개 고정";
+    else rangeLabel = `열쇠 ${range[0]} ~ ${range[1]}개 / 업템 ${range[0]} ~ ${range[1]}개`;
+
     const missingHtml = missing.length ? `<div class="warn">⚠️ 매물없음: ${missing.map(m=>m.replace("탈틴 농장 ","")).join(", ")}</div>` : "";
 
-    const keyOpts = isFixed ? `<span class="fixed-badge">1개 고정</span>` :
-      Array.from({length: range[1]-range[0]+1}, (_,i) => range[0]+i)
-        .map(n => `<label class="rbtn"><input type="radio" name="key_${q.name}" value="${n}" ${n===range[0]?"checked":""}> ${n}개</label>`).join("");
-
-    const upgTypeOpts = Object.entries(UPGRADE_ITEMS)
-      .map(([k,v]) => `<label class="rbtn"><input type="radio" name="upg_type_${q.name}" value="${v}" ${k==="벽돌"?"checked":""}> ${k}(${v/10000}만G)</label>`).join("");
-
-    const upgCntOpts = isFixed ? `<span class="fixed-badge">1개 고정</span>` :
-      Array.from({length: range[1]-range[0]+1}, (_,i) => range[0]+i)
-        .map(n => `<label class="rbtn"><input type="radio" name="upg_cnt_${q.name}" value="${n}" ${n===range[0]?"checked":""}> ${n}개</label>`).join("");
-
     const safeId = q.name.replace(/[^a-zA-Z0-9가-힣]/g, "_");
+
+    // 열쇠 섹션
+    const keySection = keyOnly || (!upgOnly)
+      ? `<div class="sim-col">
+          <div class="sim-label">🗝️ 열쇠 개수</div>
+          <div class="rbtn-group"><span class="fixed-badge">1개 고정</span></div>
+        </div>`
+      : "";
+
+    // 업그레이드 템 섹션
+    const upgTypeOpts = Object.entries(UPGRADE_ITEMS)
+      .map(([k,v]) => `<label class="rbtn"><input type="radio" name="upg_type_${safeId}" value="${v}" ${k==="벽돌"?"checked":""}> ${k}(${v/10000}만G)</label>`).join("");
+    const upgSection = upgOnly || (!keyOnly)
+      ? `<div class="sim-col wide">
+          <div class="sim-label">🧱 업그레이드 템 종류</div>
+          <div class="rbtn-group">${upgTypeOpts}</div>
+          <div class="sim-label" style="margin-top:8px">🔢 업그레이드 템 개수</div>
+          <div class="rbtn-group"><span class="fixed-badge">1개 고정</span></div>
+        </div>`
+      : "";
 
     return `
 <div class="quest-card">
@@ -203,17 +209,9 @@ function buildPage(prices, fetchedAt) {
   </div>
   <details class="sim-details">
     <summary>🎲 보상 시뮬레이터</summary>
-    <div class="sim-body" id="sim_${safeId}" data-cost="${cost}">
-      <div class="sim-col">
-        <div class="sim-label">🗝️ 열쇠 개수</div>
-        <div class="rbtn-group">${keyOpts}</div>
-      </div>
-      <div class="sim-col wide">
-        <div class="sim-label">🧱 업그레이드 템 종류</div>
-        <div class="rbtn-group">${upgTypeOpts.replace(/name="upg_type_[^"]+"/g, `name="upg_type_${safeId}"`)}</div>
-        <div class="sim-label" style="margin-top:8px">🔢 업그레이드 템 개수</div>
-        <div class="rbtn-group">${upgCntOpts.replace(/name="upg_cnt_[^"]+"/g, `name="upg_cnt_${safeId}"`)}</div>
-      </div>
+    <div class="sim-body" id="sim_${safeId}" data-cost="${cost}" data-key-only="${keyOnly}" data-upg-only="${upgOnly}">
+      ${keySection}
+      ${upgSection}
       <div class="sim-col result-col" id="result_${safeId}">
         <div class="sim-label">📊 결과</div>
         <div>재료비 <strong>${fmt(cost)} G</strong></div>
@@ -244,18 +242,7 @@ function buildPage(prices, fetchedAt) {
 
   const makeCatHtml = (catName) => CATEGORIES[catName].map(item => {
     const p = prices[item] || 0;
-    const recipe = POT_RECIPES[item];
-    let profitHtml = "";
-    if (recipe && p > 0) {
-      const matCost = Object.entries(recipe).reduce((sum, [mat, qty]) => sum + (prices[mat] || 0) * qty, 0);
-      if (matCost > 0) {
-        const diff = p - matCost;
-        const color = diff > 0 ? "#00ffc8" : diff < 0 ? "#ff6b6b" : "#ffd166";
-        const sign = diff > 0 ? "+" : "";
-        profitHtml = `<span style="color:${color};font-size:12px;white-space:nowrap;margin-left:6px;">${sign}${fmt(diff)} G</span>`;
-      }
-    }
-    return `<div class="item-row">${itemImg(item)}<span>${item.replace("탈틴 농장 ","")}</span><strong>${fmt(p)} G</strong>${profitHtml}</div>`;
+    return `<div class="item-row">${itemImg(item)}<span>${item.replace("탈틴 농장 ","")}</span><strong>${fmt(p)} G</strong></div>`;
   }).join("");
 
   const specialHtml = SPECIAL_ITEMS.map(item => {
@@ -295,6 +282,8 @@ h3 { font-size: 15px; color: var(--accent); margin: 16px 0 8px; }
 .info-bar { display:flex; align-items:center; gap:12px; margin-bottom:12px; font-size:12px; color:var(--text2); flex-wrap:wrap; }
 .refresh-btn { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
 .refresh-btn:hover { background: var(--border); }
+.special-refresh-btn { background: #1f3d37; border: 1px solid var(--accent); color: var(--accent); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold; }
+.special-refresh-btn:hover { background: var(--accent); color: #000; }
 hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
 .quest-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
 .quest-header { display: grid; grid-template-columns: 3fr 1fr 1.5fr 1.5fr; gap: 12px; padding: 12px 16px; align-items: start; }
@@ -523,7 +512,10 @@ ${questCards}
 
 <!-- 섹션 6: 특화 채집 -->
 <h2>💎 특화 채집 실시간 시세</h2>
-<div class="info-bar"><span>경매장 최저가 기준 | 조회: ${fetchedAt}</span></div>
+<div class="info-bar">
+  <button class="special-refresh-btn" id="btn-special-refresh" onclick="refreshSpecialClient()">⚡ 특화채집 시세만 새로고침</button>
+  <span id="special-status-text">특화채집은 위 버튼을 누를 때만 실시간 갱신됩니다.</span>
+</div>
 <div class="grid-4">${specialHtml}</div>
 
 <hr>
@@ -604,10 +596,22 @@ document.addEventListener("change", function(e) {
 });
 function updateSim(simBody) {
   const cost = parseInt(simBody.dataset.cost) || 0;
-  const keyVal = parseInt(simBody.querySelector('input[name^="key_"]:checked')?.value || 1);
-  const upgTypeVal = parseInt(simBody.querySelector('input[name^="upg_type_"]:checked')?.value || 10000);
-  const upgCntVal = parseInt(simBody.querySelector('input[name^="upg_cnt_"]:checked')?.value || 1);
-  const reward = KEY_VALUE * keyVal + upgTypeVal * upgCntVal;
+  const keyOnly = simBody.dataset.keyOnly === "true";
+  const upgOnly = simBody.dataset.upgOnly === "true";
+
+  let reward = 0;
+  if (keyOnly) {
+    reward = KEY_VALUE;
+  } else if (upgOnly) {
+    const upgTypeVal = parseInt(simBody.querySelector('input[name^="upg_type_"]:checked')?.value || 10000);
+    reward = upgTypeVal;
+  } else {
+    const keyVal = parseInt(simBody.querySelector('input[name^="key_"]:checked')?.value || 1);
+    const upgTypeVal = parseInt(simBody.querySelector('input[name^="upg_type_"]:checked')?.value || 10000);
+    const upgCntVal = parseInt(simBody.querySelector('input[name^="upg_cnt_"]:checked')?.value || 1);
+    reward = KEY_VALUE * keyVal + upgTypeVal * upgCntVal;
+  }
+
   const profit = reward - cost;
   const color = profit > 0 ? "#00ffc8" : profit < 0 ? "#ff6b6b" : "#ffd166";
   const label = profit > 0 ? "🟢 +" + fmt(profit) + " G" : profit < 0 ? "🔴 " + fmt(profit) + " G" : "⚪ 0 G";
@@ -617,6 +621,29 @@ function updateSim(simBody) {
   if (profitEl) { profitEl.textContent = label; profitEl.style.color = color; }
 }
 document.querySelectorAll(".sim-body").forEach(updateSim);
+
+// ── 특화 채집 새로고침 ──
+async function refreshSpecialClient() {
+  const btn = document.getElementById("btn-special-refresh");
+  const status = document.getElementById("special-status-text");
+  btn.disabled = true;
+  btn.innerText = "🔄 수집 중...";
+  status.innerText = "특화 채집 19종 시세 수집 중...";
+  try {
+    const res = await fetch("/api/refresh-special");
+    if (res.ok) {
+      const newPrices = await res.json();
+      Object.assign(PRICES, newPrices);
+      for (const [item, price] of Object.entries(newPrices)) {
+        const safeId = item.replace(/[^a-zA-Z0-9가-힣]/g, "_");
+        const el = document.getElementById("spec_price_" + safeId);
+        if (el) el.innerText = price ? fmt(price) + " G" : "매물없음";
+      }
+      status.innerText = "✨ 갱신 완료!";
+    } else { status.innerText = "❌ 서버 오류"; }
+  } catch { status.innerText = "❌ 네트워크 오류"; }
+  finally { btn.disabled = false; btn.innerText = "⚡ 특화채집 시세만 새로고침"; }
+}
 
 // ── 장바구니 ──
 let cart = JSON.parse(localStorage.getItem("mabi_cart") || "[]");
@@ -884,23 +911,39 @@ export default {
     return new Response(html, { headers: { "content-type": "text/html;charset=UTF-8" } });
   },
 
-  // ── Cron Trigger: 2분마다 시세 수집 → D1 저장 ──
-  // 탈농 앞쪽(~20개) / 탈농 뒤쪽(~21개) / 특화(19개) 3그룹 순환으로 CPU 10ms 제한 회피
+  // ── Cron Trigger: 1분마다 시세 수집 → D1 저장 ──
+  // 탈농(~40개)과 특화(19개)를 번갈아 수집해서 서브리퀘스트 50회 제한 회피
   async scheduled(event, env) {
     const apiKey = env.NEXON_API_KEY;
     if (!apiKey || !env.MABI_DB) return;
 
-    // 3그룹 순환: (minute/2) % 3 → 0, 1, 2
-    const minute = new Date().getUTCMinutes();
-    const group = Math.floor(minute / 2) % 3;
+    // 테이블 초기화 (문장 분리)
+    await env.MABI_DB.exec(`CREATE TABLE IF NOT EXISTS prices (id INTEGER PRIMARY KEY AUTOINCREMENT, item_name TEXT NOT NULL, price INTEGER NOT NULL, recorded_at DATETIME DEFAULT (datetime('now')))`);
+    await env.MABI_DB.exec(`CREATE INDEX IF NOT EXISTS idx_item_time ON prices(item_name, recorded_at)`);
 
-    const farmItems = [...new Set([...Object.values(CATEGORIES).flat()])];
-    const half = Math.ceil(farmItems.length / 2);
-    const targetItems = group === 0
-      ? farmItems.slice(0, half)
-      : group === 1
-      ? farmItems.slice(half)
-      : [...SPECIAL_ITEMS];
+    // 짝수/홀수 분으로 4분할 수집 (한 번에 최대 21개로 CPU 부하 절감)
+    // 분 % 4 == 0: 탈농 기본 생산품 (21개)
+    // 분 % 4 == 1: 특화 채집 (19개)
+    // 분 % 4 == 2: 탈농 가공품 (20개)
+    // 분 % 4 == 3: 특화 채집 (19개)
+    const minute = new Date().getUTCMinutes();
+    const slot = minute % 4;
+
+    let targetItems = [];
+    if (slot === 0) {
+      targetItems = [...CATEGORIES["기본 생산품"]];
+    } else if (slot === 1) {
+      targetItems = [...SPECIAL_ITEMS];
+    } else if (slot === 2) {
+      targetItems = [
+        ...CATEGORIES["풍요로운 마법의 솥"],
+        ...CATEGORIES["부드러운 마법의 솥"],
+        ...CATEGORIES["반짝이는 마법의 솥"],
+        ...CATEGORIES["섬세한 마법의 솥"],
+      ];
+    } else {
+      targetItems = [...SPECIAL_ITEMS];
+    }
 
     // 5개씩 병렬 조회
     const priceMap = {};
