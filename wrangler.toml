@@ -13,3 +13,14 @@ database_id = "2330f25e-8d63-4583-8771-bbd0e1f60edc"
 
 [triggers]
 crons = ["* * * * *"]
+
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+invocation_logs = true
+
+[observability.traces]
+enabled = false
