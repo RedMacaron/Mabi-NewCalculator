@@ -12,11 +12,4 @@ database_name = "mabi-prices"
 database_id = "2330f25e-8d63-4583-8771-bbd0e1f60edc"
 
 [triggers]
-crons = ["*/2 * * * *"]
-
-[observability.logs]
-enabled = true
-invocation_logs = true
-
-[observability.traces]
-enabled = false
+crons = ["* * * * *"]
