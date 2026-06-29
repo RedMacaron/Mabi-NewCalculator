@@ -103,10 +103,13 @@ async function fetchPrice(itemName, apiKey) {
 
 async function fetchAutoPrices(apiKey, kv) {
   let price_map = {};
+  let last_sold_map = {};
   if (kv) {
     try {
       const cached = await kv.get("all_prices");
       if (cached) price_map = JSON.parse(cached);
+      const cachedLast = await kv.get("last_sold");
+      if (cachedLast) last_sold_map = JSON.parse(cachedLast);
     } catch {}
   }
 
@@ -128,7 +131,7 @@ async function fetchAutoPrices(apiKey, kv) {
   if (kv) {
     try { await kv.put("all_prices", JSON.stringify(price_map)); } catch {}
   }
-  return price_map;
+  return { prices: price_map, lastSold: last_sold_map };
 }
 
 async function refreshSpecialPrices(apiKey, kv) {
@@ -154,10 +157,22 @@ async function refreshSpecialPrices(apiKey, kv) {
 }
 
 // ── 유틸 ───────────────────────────────────────────────────
+async function fetchLastSold(itemName, apiKey) {
+  const url = `https://open.api.nexon.com/mabinogi/v1/auction/history?item_name=${encodeURIComponent(itemName)}`;
+  try {
+    const res = await fetch(url, { headers: { "x-nxopen-api-key": apiKey, "accept": "application/json" } });
+    if (!res.ok) return 0;
+    const data = await res.json();
+    const history = data.auction_history || [];
+    if (!history.length) return 0;
+    // 가장 최근 거래 낙찰가 반환
+    return history[0].auction_price_per_unit || 0;
+  } catch { return 0; }
+}
 const fmt = n => Number(n).toLocaleString("ko-KR");
 
 // ── HTML 빌더 ──────────────────────────────────────────────
-function buildPage(prices, fetchedAt) {
+function buildPage(prices, lastSold, fetchedAt) {
   const questCards = DELIVERY_QUESTS.map(q => {
     const cost = Object.entries(q.materials).reduce((s,[k,v]) => s + (prices[k]||0)*v, 0);
     const missing = Object.keys(q.materials).filter(k => !prices[k]);
@@ -238,18 +253,24 @@ function buildPage(prices, fetchedAt) {
 
   const farmBasic = CATEGORIES["기본 생산품"].map(item => {
     const p = prices[item] || 0;
-    return `<div class="item-row">${itemImg(item)}<span>${item.replace("탈틴 농장 ","")}</span><strong>${fmt(p)} G</strong></div>`;
+    const ls = lastSold[item] || 0;
+    const lsHtml = ls ? `<span style="font-size:11px;color:#aaa;margin-left:6px;">거래 ${fmt(ls)}G</span>` : "";
+    return `<div class="item-row">${itemImg(item)}<span>${item.replace("탈틴 농장 ","")}</span><strong>${fmt(p)} G</strong>${lsHtml}</div>`;
   }).join("");
 
   const makeCatHtml = (catName) => CATEGORIES[catName].map(item => {
     const p = prices[item] || 0;
-    return `<div class="item-row">${itemImg(item)}<span>${item.replace("탈틴 농장 ","")}</span><strong>${fmt(p)} G</strong></div>`;
+    const ls = lastSold[item] || 0;
+    const lsHtml = ls ? `<span style="font-size:11px;color:#aaa;margin-left:4px;">거래 ${fmt(ls)}G</span>` : "";
+    return `<div class="item-row">${itemImg(item)}<span>${item.replace("탈틴 농장 ","")}</span><strong>${fmt(p)} G</strong>${lsHtml}</div>`;
   }).join("");
 
   const specialHtml = SPECIAL_ITEMS.map(item => {
     const p = prices[item] || 0;
+    const ls = lastSold[item] || 0;
     const safeItemName = item.replace(/[^a-zA-Z0-9가-힣]/g, "_");
-    return `<div class="item-row" id="spec_row_${safeItemName}">${itemImg(item)}<span>${item}</span><strong id="spec_price_${safeItemName}">${p ? fmt(p)+" G" : "매물없음"}</strong></div>`;
+    const lsHtml = ls ? `<span style="font-size:11px;color:#aaa;margin-left:6px;">거래 ${fmt(ls)}G</span>` : "";
+    return `<div class="item-row" id="spec_row_${safeItemName}">${itemImg(item)}<span>${item}</span><strong id="spec_price_${safeItemName}">${p ? fmt(p)+" G" : "매물없음"}</strong>${lsHtml}</div>`;
   }).join("");
 
   // 그래프용 체크박스 옵션 생성
@@ -906,73 +927,79 @@ export default {
     }
 
     // 메인 페이지
-    const prices = await fetchAutoPrices(apiKey, env.MABI_CACHE);
+    const { prices, lastSold } = await fetchAutoPrices(apiKey, env.MABI_CACHE);
     const now = new Date().toLocaleTimeString("ko-KR", { hour:"2-digit", minute:"2-digit", second:"2-digit", timeZone:"Asia/Seoul" });
-    const html = buildPage(prices, now);
+    const html = buildPage(prices, lastSold, now);
     return new Response(html, { headers: { "content-type": "text/html;charset=UTF-8" } });
   },
 
   // ── Cron Trigger: 1분마다 시세 수집 → D1 저장 ──
-  // 탈농(~40개)과 특화(19개)를 번갈아 수집해서 서브리퀘스트 50회 제한 회피
+  // 전체 60개 × 2(현재가+거래내역) = 120호출 → 10개씩 12그룹 순환
+  // KV는 6번째(그룹5)와 12번째(그룹11) 완료 시에만 저장 (하루 240회)
   async scheduled(event, env) {
     const apiKey = env.NEXON_API_KEY;
     if (!apiKey || !env.MABI_DB) return;
 
-    // 테이블 초기화 (문장 분리)
-    await env.MABI_DB.exec(`CREATE TABLE IF NOT EXISTS prices (id INTEGER PRIMARY KEY AUTOINCREMENT, item_name TEXT NOT NULL, price INTEGER NOT NULL, recorded_at DATETIME DEFAULT (datetime('now')))`);
-    await env.MABI_DB.exec(`CREATE INDEX IF NOT EXISTS idx_item_time ON prices(item_name, recorded_at)`);
+    // 전체 아이템 목록 (순서 고정)
+    const allItems = [
+      ...CATEGORIES["기본 생산품"],
+      ...CATEGORIES["풍요로운 마법의 솥"],
+      ...CATEGORIES["부드러운 마법의 솥"],
+      ...CATEGORIES["반짝이는 마법의 솥"],
+      ...CATEGORIES["섬세한 마법의 솥"],
+      ...SPECIAL_ITEMS,
+    ];
 
-    // 짝수/홀수 분으로 4분할 수집 (한 번에 최대 21개로 CPU 부하 절감)
-    // 분 % 4 == 0: 탈농 기본 생산품 (21개)
-    // 분 % 4 == 1: 특화 채집 (19개)
-    // 분 % 4 == 2: 탈농 가공품 (20개)
-    // 분 % 4 == 3: 특화 채집 (19개)
+    // 10개씩 12그룹 (마지막 그룹은 나머지)
+    const GROUP_SIZE = 10;
+    const totalGroups = Math.ceil(allItems.length / GROUP_SIZE);
     const minute = new Date().getUTCMinutes();
-    const slot = minute % 4;
+    const groupIdx = minute % totalGroups;
+    const targetItems = allItems.slice(groupIdx * GROUP_SIZE, (groupIdx + 1) * GROUP_SIZE);
 
-    let targetItems = [];
-    if (slot === 0) {
-      targetItems = [...CATEGORIES["기본 생산품"]];
-    } else if (slot === 1) {
-      targetItems = [...SPECIAL_ITEMS];
-    } else if (slot === 2) {
-      targetItems = [
-        ...CATEGORIES["풍요로운 마법의 솥"],
-        ...CATEGORIES["부드러운 마법의 솥"],
-        ...CATEGORIES["반짝이는 마법의 솥"],
-        ...CATEGORIES["섬세한 마법의 솥"],
-      ];
-    } else {
-      targetItems = [...SPECIAL_ITEMS];
-    }
-
-    // 5개씩 병렬 조회
+    // 현재가 + 거래내역 동시 조회
     const priceMap = {};
-    const chunkSize = 5;
-    for (let i = 0; i < targetItems.length; i += chunkSize) {
-      const chunk = targetItems.slice(i, i + chunkSize);
-      const results = await Promise.all(chunk.map(async item => [item, await fetchPrice(item, apiKey)]));
-      results.forEach(([item, price]) => { priceMap[item] = price; });
+    const lastSoldMap = {};
+    await Promise.all(targetItems.map(async item => {
+      const [price, lastSold] = await Promise.all([
+        fetchPrice(item, apiKey),
+        fetchLastSold(item, apiKey),
+      ]);
+      priceMap[item] = price;
+      lastSoldMap[item] = lastSold;
+    }));
+
+    // D1 배치 insert (현재가만)
+    if (Object.keys(priceMap).length > 0) {
+      const stmt = env.MABI_DB.prepare("INSERT INTO prices (item_name, price) VALUES (?, ?)");
+      const batch = Object.entries(priceMap).map(([item, price]) => stmt.bind(item, price));
+      await env.MABI_DB.batch(batch);
     }
 
-    // D1 배치 insert
-    const stmt = env.MABI_DB.prepare("INSERT INTO prices (item_name, price) VALUES (?, ?)");
-    const batch = Object.entries(priceMap).map(([item, price]) => stmt.bind(item, price));
-    await env.MABI_DB.batch(batch);
-
-    // KV 캐시 갱신 (기존 캐시에 머지)
-    if (env.MABI_CACHE) {
+    // KV 캐시 갱신 — 6번째(groupIdx===5)와 12번째(groupIdx===11) 그룹에서만 저장
+    const isKvWriteGroup = groupIdx % 2 === 1;
+    if (isKvWriteGroup && env.MABI_CACHE) {
       try {
         const existing = await env.MABI_CACHE.get("all_prices");
-        const merged = existing ? { ...JSON.parse(existing), ...priceMap } : priceMap;
-        await env.MABI_CACHE.put("all_prices", JSON.stringify(merged));
+        const parsed = existing ? JSON.parse(existing) : {};
+        // 현재가 머지
+        const mergedPrices = { ...parsed, ...priceMap };
+        // 거래내역은 별도 키에 머지
+        const existingLast = await env.MABI_CACHE.get("last_sold");
+        const parsedLast = existingLast ? JSON.parse(existingLast) : {};
+        const mergedLast = { ...parsedLast, ...lastSoldMap };
+        await env.MABI_CACHE.put("all_prices", JSON.stringify(mergedPrices));
+        await env.MABI_CACHE.put("last_sold", JSON.stringify(mergedLast));
       } catch {}
+    } else if (env.MABI_CACHE) {
+      // KV 비저장 그룹에서도 last_sold는 메모리에서만 누적 (다음 저장 그룹에서 반영)
+      // 현재가는 매번 KV 미저장이지만 D1에는 저장됨
     }
 
     // 14일 이상 된 데이터 자동 삭제 — 매일 자정(UTC 0시)에만 실행
     const utcHour = new Date().getUTCHours();
     const utcMinute = new Date().getUTCMinutes();
-    if (utcHour === 0 && utcMinute < 3) {
+    if (utcHour === 0 && utcMinute < 2) {
       await env.MABI_DB.exec("DELETE FROM prices WHERE recorded_at < datetime('now', '-14 days')");
     }
   }
