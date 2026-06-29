@@ -255,14 +255,14 @@ function buildPage(prices, lastSold, fetchedAt) {
     const p = prices[item] || 0;
     const ls = lastSold[item] || 0;
     const lsHtml = ls ? `<span style="font-size:11px;color:#aaa;margin-left:6px;">| 거래 ${fmt(ls)}G</span>` : "";
-    return `<div class="item-row">${itemImg(item)}<span>${item.replace("탈틴 농장 ","")}</span><strong>${fmt(p)} G</strong>${lsHtml}</div>`;
+    return `<div class="item-row">${itemImg(item)}<span>${item.replace("탈틴 농장 ","")}</span><div class="item-price"><strong>${fmt(p)} G</strong>${lsHtml}</div></div>`;
   }).join("");
 
   const makeCatHtml = (catName) => CATEGORIES[catName].map(item => {
     const p = prices[item] || 0;
     const ls = lastSold[item] || 0;
     const lsHtml = ls ? `<span style="font-size:11px;color:#aaa;margin-left:6px;">| 거래 ${fmt(ls)}G</span>` : "";
-    return `<div class="item-row">${itemImg(item)}<span>${item.replace("탈틴 농장 ","")}</span><strong>${fmt(p)} G</strong>${lsHtml}</div>`;
+    return `<div class="item-row">${itemImg(item)}<span>${item.replace("탈틴 농장 ","")}</span><div class="item-price"><strong>${fmt(p)} G</strong>${lsHtml}</div></div>`;
   }).join("");
 
   const specialHtml = SPECIAL_ITEMS.map(item => {
@@ -270,7 +270,7 @@ function buildPage(prices, lastSold, fetchedAt) {
     const ls = lastSold[item] || 0;
     const safeItemName = item.replace(/[^a-zA-Z0-9가-힣]/g, "_");
     const lsHtml = ls ? `<span style="font-size:11px;color:#aaa;margin-left:6px;">| 거래 ${fmt(ls)}G</span>` : "";
-    return `<div class="item-row" id="spec_row_${safeItemName}">${itemImg(item)}<span>${item}</span><strong id="spec_price_${safeItemName}">${p ? fmt(p)+" G" : "매물없음"}</strong>${lsHtml}</div>`;
+    return `<div class="item-row" id="spec_row_${safeItemName}">${itemImg(item)}<span>${item}</span><div class="item-price"><strong id="spec_price_${safeItemName}">${p ? fmt(p)+" G" : "매물없음"}</strong>${lsHtml}</div></div>`;
   }).join("");
 
   // 그래프용 체크박스 옵션 생성
@@ -334,6 +334,7 @@ tr:hover td { background: rgba(255,255,255,0.03); }
 .item-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; border-radius: 6px; background: rgba(150,150,150,0.08); margin-bottom: 4px; }
 .item-row span { flex: 1; }
 .item-row strong { color: #fff; white-space: nowrap; }
+.item-price { display: flex; align-items: center; gap: 0; white-space: nowrap; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -401,25 +402,8 @@ ${questCards}
   <tbody>
     ${shoppingRows}
     <tr class="total-row"><td colspan="3">총 합계</td><td class="num">${fmt(shoppingTotal)} G</td></tr>
-    <tr class="total-row"><td colspan="3">1/N (절반)</td><td class="num">${fmt(Math.floor(shoppingTotal/2))} G</td></tr>
   </tbody>
 </table>
-
-<hr>
-
-<!-- 섹션 2: 장바구니 -->
-<h2>🔍 개별 품목 검색 (장바구니)</h2>
-<div class="cart-form">
-  <input type="text" id="cart-name" placeholder="아이템 이름">
-  <input type="number" id="cart-cnt" value="1" min="1">
-  <button class="btn-primary" onclick="cartAdd()">추가 ➕</button>
-</div>
-<div id="cart-list"></div>
-<div style="margin-top:8px;display:flex;gap:8px;">
-  <button class="btn-primary" onclick="cartCalc()">🔎 견적 확인</button>
-  <button class="btn-secondary" onclick="cartClear()">🗑️ 목록 비우기</button>
-</div>
-<div id="cart-result"></div>
 
 <hr>
 
@@ -505,12 +489,6 @@ ${questCards}
     </div>
   </div>
 </div>
-
-<hr>
-
-<!-- 섹션 4: 아르바이트 -->
-<h2>🕊️ 아르바이트 보상 받기 목록</h2>
-<p>관청: 잡보 아무거나 | 식료품: 낙지 | 의류점: <strong>튼튼한 고리</strong> (1순위) / 물교용 방직 재료 (2순위) | 힐러: 생명력 500 포션 | 서점: 마법의 깃털펜</p>
 
 <hr>
 
