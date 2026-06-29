@@ -105,13 +105,11 @@ async function fetchAutoPrices(apiKey, kv, db) {
   let price_map = {};
   let last_sold_map = {};
 
-  // KV 캐시 확인 (TTL 5분)
+  // KV 캐시 확인 (TTL 5분) — 현재가만
   if (kv) {
     try {
       const cached = await kv.get("all_prices");
       if (cached) price_map = JSON.parse(cached);
-      const cachedLast = await kv.get("last_sold");
-      if (cachedLast) last_sold_map = JSON.parse(cachedLast);
     } catch {}
   }
 
@@ -132,19 +130,15 @@ async function fetchAutoPrices(apiKey, kv, db) {
 
     // KV에 5분 TTL로 저장
     if (kv) {
-      try { await kv.put("all_prices", JSON.stringify(price_map), { expirationTtl: 300 }); } catch {}
+      try { await kv.put("all_prices", JSON.stringify(price_map), { expirationTtl: 180 }); } catch {}
     }
   }
 
-  // last_sold가 KV에 없으면 D1에서 읽기
-  if (Object.keys(last_sold_map).length === 0 && db) {
+  // last_sold는 KV 없이 매번 D1에서 직접 읽기 (60행이라 부하 없음)
+  if (db) {
     try {
       const rows = await db.prepare("SELECT item_name, price FROM last_sold").all();
       rows.results.forEach(r => { last_sold_map[r.item_name] = r.price; });
-      // KV에 5분 TTL로 캐시
-      if (kv && rows.results.length > 0) {
-        await kv.put("last_sold", JSON.stringify(last_sold_map), { expirationTtl: 300 });
-      }
     } catch {}
   }
 
@@ -838,6 +832,30 @@ async function fetchPriceClient(itemName) {
   } catch { return 0; }
 }
 
+// ── 3분마다 가격 자동 갱신 ──
+async function autoRefreshPrices() {
+  try {
+    const res = await fetch("/api/prices/all");
+    const newPrices = await res.json();
+    if (!Object.keys(newPrices).length) return;
+    Object.assign(PRICES, newPrices);
+
+    // 탈농 시세 카드 업데이트
+    document.querySelectorAll(".item-row").forEach(row => {
+      const nameEl = row.querySelector("span");
+      if (!nameEl) return;
+      const fullName = "탈틴 농장 " + nameEl.textContent.trim();
+      const price = newPrices[fullName] || newPrices[nameEl.textContent.trim()];
+      if (price) {
+        const strongEl = row.querySelector("strong");
+        if (strongEl) strongEl.textContent = Number(price).toLocaleString("ko-KR") + " G";
+      }
+    });
+  } catch {}
+}
+
+setInterval(autoRefreshPrices, 2 * 60 * 1000);
+
 // ── 초기화 ──
 renderCart();
 buildQuestChecks();
@@ -864,6 +882,19 @@ export default {
         });
       } catch(e) {
         return new Response(JSON.stringify({ error: e.message }), { headers: { "content-type": "application/json" } });
+      }
+    }
+
+    // 전체 현재가 배치 반환 (클라이언트 주기적 갱신용)
+    if (url.pathname === "/api/prices/all") {
+      try {
+        const cached = await env.MABI_CACHE.get("all_prices");
+        const prices = cached ? JSON.parse(cached) : {};
+        return new Response(JSON.stringify(prices), {
+          headers: { "content-type": "application/json", "Access-Control-Allow-Origin": "*" }
+        });
+      } catch {
+        return new Response(JSON.stringify({}), { headers: { "content-type": "application/json" } });
       }
     }
 
@@ -977,11 +1008,21 @@ export default {
       results.forEach(([item, val]) => { resultMap[item] = val; });
     }
 
-    // D1 저장 (짝수: prices 테이블, 홀수: last_sold 테이블)
+    // D1 저장 + KV 머지 저장
     if (isEven) {
+      // 짝수 분: 현재가 D1 저장
       const stmt = env.MABI_DB.prepare("INSERT INTO prices (item_name, price) VALUES (?, ?)");
       const batch = Object.entries(resultMap).map(([item, price]) => stmt.bind(item, price));
       await env.MABI_DB.batch(batch);
+
+      // KV: 기존 last_sold 읽어서 현재가와 머지
+      if (env.MABI_CACHE) {
+        try {
+          const existing = await env.MABI_CACHE.get("all_prices");
+          const merged = existing ? { ...JSON.parse(existing), ...resultMap } : resultMap;
+          await env.MABI_CACHE.put("all_prices", JSON.stringify(merged), { expirationTtl: 180 });
+        } catch {}
+      }
 
       // 14일 이상 된 데이터 자동 삭제 — 매일 자정(UTC 0시)에만 실행
       const utcHour = new Date().getUTCHours();
@@ -989,7 +1030,7 @@ export default {
         await env.MABI_DB.exec("DELETE FROM prices WHERE recorded_at < datetime('now', '-14 days')");
       }
     } else {
-      // 거래내역 D1 저장 (last_sold 테이블)
+      // 홀수 분: 거래내역 D1 저장
       await env.MABI_DB.exec(`CREATE TABLE IF NOT EXISTS last_sold (item_name TEXT PRIMARY KEY, price INTEGER NOT NULL, recorded_at DATETIME DEFAULT (datetime('now')))`);
       const stmt = env.MABI_DB.prepare("INSERT OR REPLACE INTO last_sold (item_name, price, recorded_at) VALUES (?, ?, datetime('now'))");
       const batch = Object.entries(resultMap)
