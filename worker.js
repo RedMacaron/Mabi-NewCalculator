@@ -974,69 +974,91 @@ export default {
     return new Response(html, { headers: { "content-type": "text/html;charset=UTF-8" } });
   },
 
-  // ── Cron Trigger: 1분마다 실행 ──
-  // 짝수 분: 60개 현재가 → D1 저장
-  // 홀수 분: 60개 거래내역 → D1 저장
-  // KV는 Cron에서 완전히 분리 (페이지 로드 시에만 갱신)
+  // ── Cron Trigger: 1분마다 실행, 5분 순환 ──
+  // 0분: 현재가 40개 (기본생산품21 + 가공품19) → D1 + KV 머지
+  // 1분: 현재가 20개 (가공품1 + 특화19) + 거래내역 21개 (기본생산품) → D1 + KV 머지
+  // 2분: 거래내역 39개 (가공품20 + 특화19) → D1 + KV 머지
+  // 3분, 4분: 휴식
   async scheduled(event, env) {
     const apiKey = env.NEXON_API_KEY;
     if (!apiKey || !env.MABI_DB) return;
 
-    const allItems = [
-      ...CATEGORIES["기본 생산품"],
+    const basicItems = [...CATEGORIES["기본 생산품"]]; // 21개
+    const potItems = [
       ...CATEGORIES["풍요로운 마법의 솥"],
       ...CATEGORIES["부드러운 마법의 솥"],
       ...CATEGORIES["반짝이는 마법의 솥"],
       ...CATEGORIES["섬세한 마법의 솥"],
-      ...SPECIAL_ITEMS,
-    ];
+    ]; // 20개
+    const specialItems = [...SPECIAL_ITEMS]; // 19개
 
     const minute = new Date().getUTCMinutes();
-    const isEven = minute % 2 === 0;
+    const slot = minute % 5;
 
-    // 5개씩 병렬 조회
-    const chunkSize = 5;
-    const resultMap = {};
-    for (let i = 0; i < allItems.length; i += chunkSize) {
-      const chunk = allItems.slice(i, i + chunkSize);
-      const results = await Promise.all(chunk.map(async item => {
-        const val = isEven
-          ? await fetchPrice(item, apiKey)
-          : await fetchLastSold(item, apiKey);
-        return [item, val];
-      }));
-      results.forEach(([item, val]) => { resultMap[item] = val; });
+    // 3,4분은 휴식
+    if (slot === 3 || slot === 4) return;
+
+    let tasks = [];
+    if (slot === 0) {
+      // 현재가: 기본생산품21 + 가공품19 = 40개
+      tasks = [
+        ...basicItems.map(item => ({ item, type: "price" })),
+        ...potItems.slice(0, 19).map(item => ({ item, type: "price" })),
+      ];
+    } else if (slot === 1) {
+      // 현재가: 가공품1 + 특화19 = 20개
+      // 거래내역: 기본생산품21 = 21개 → 합계 41개
+      tasks = [
+        ...potItems.slice(19).map(item => ({ item, type: "price" })),
+        ...specialItems.map(item => ({ item, type: "price" })),
+        ...basicItems.map(item => ({ item, type: "lastSold" })),
+      ];
+    } else {
+      // 거래내역: 가공품20 + 특화19 = 39개
+      tasks = [
+        ...potItems.map(item => ({ item, type: "lastSold" })),
+        ...specialItems.map(item => ({ item, type: "lastSold" })),
+      ];
     }
 
-    // D1 저장 + KV 머지 저장
-    if (isEven) {
-      // 짝수 분: 현재가 D1 저장
+    // 병렬 조회
+    const priceMap = {};
+    const lastSoldMap = {};
+    await Promise.all(tasks.map(async ({ item, type }) => {
+      if (type === "price") {
+        priceMap[item] = await fetchPrice(item, apiKey);
+      } else {
+        const val = await fetchLastSold(item, apiKey);
+        if (val > 0) lastSoldMap[item] = val;
+      }
+    }));
+
+    // D1 저장
+    if (Object.keys(priceMap).length > 0) {
       const stmt = env.MABI_DB.prepare("INSERT INTO prices (item_name, price) VALUES (?, ?)");
-      const batch = Object.entries(resultMap).map(([item, price]) => stmt.bind(item, price));
+      const batch = Object.entries(priceMap).map(([item, price]) => stmt.bind(item, price));
       await env.MABI_DB.batch(batch);
-
-      // KV: 기존 last_sold 읽어서 현재가와 머지
-      if (env.MABI_CACHE) {
-        try {
-          const existing = await env.MABI_CACHE.get("all_prices");
-          const merged = existing ? { ...JSON.parse(existing), ...resultMap } : resultMap;
-          await env.MABI_CACHE.put("all_prices", JSON.stringify(merged), { expirationTtl: 180 });
-        } catch {}
-      }
-
-      // 14일 이상 된 데이터 자동 삭제 — 매일 자정(UTC 0시)에만 실행
-      const utcHour = new Date().getUTCHours();
-      if (utcHour === 0 && minute < 2) {
-        await env.MABI_DB.exec("DELETE FROM prices WHERE recorded_at < datetime('now', '-14 days')");
-      }
-    } else {
-      // 홀수 분: 거래내역 D1 저장
+    }
+    if (Object.keys(lastSoldMap).length > 0) {
       await env.MABI_DB.exec(`CREATE TABLE IF NOT EXISTS last_sold (item_name TEXT PRIMARY KEY, price INTEGER NOT NULL, recorded_at DATETIME DEFAULT (datetime('now')))`);
       const stmt = env.MABI_DB.prepare("INSERT OR REPLACE INTO last_sold (item_name, price, recorded_at) VALUES (?, ?, datetime('now'))");
-      const batch = Object.entries(resultMap)
-        .filter(([, price]) => price > 0)
-        .map(([item, price]) => stmt.bind(item, price));
-      if (batch.length > 0) await env.MABI_DB.batch(batch);
+      const batch = Object.entries(lastSoldMap).map(([item, price]) => stmt.bind(item, price));
+      await env.MABI_DB.batch(batch);
+    }
+
+    // KV 머지 저장 (0,1,2분 모두)
+    if (env.MABI_CACHE) {
+      try {
+        const existing = await env.MABI_CACHE.get("all_prices");
+        const merged = existing ? { ...JSON.parse(existing), ...priceMap } : priceMap;
+        await env.MABI_CACHE.put("all_prices", JSON.stringify(merged), { expirationTtl: 180 });
+      } catch {}
+    }
+
+    // 14일 이상 된 데이터 자동 삭제 — 매일 자정(UTC 0시)에만 실행
+    const utcHour = new Date().getUTCHours();
+    if (utcHour === 0 && minute < 3) {
+      await env.MABI_DB.exec("DELETE FROM prices WHERE recorded_at < datetime('now', '-14 days')");
     }
   }
 };
