@@ -254,14 +254,14 @@ function buildPage(prices, lastSold, fetchedAt) {
   const farmBasic = CATEGORIES["기본 생산품"].map(item => {
     const p = prices[item] || 0;
     const ls = lastSold[item] || 0;
-    const lsHtml = ls ? `<span style="font-size:11px;color:#aaa;margin-left:6px;">거래 ${fmt(ls)}G</span>` : "";
+    const lsHtml = ls ? `<span style="font-size:11px;color:#aaa;margin-left:6px;">| 거래 ${fmt(ls)}G</span>` : "";
     return `<div class="item-row">${itemImg(item)}<span>${item.replace("탈틴 농장 ","")}</span><strong>${fmt(p)} G</strong>${lsHtml}</div>`;
   }).join("");
 
   const makeCatHtml = (catName) => CATEGORIES[catName].map(item => {
     const p = prices[item] || 0;
     const ls = lastSold[item] || 0;
-    const lsHtml = ls ? `<span style="font-size:11px;color:#aaa;margin-left:4px;">거래 ${fmt(ls)}G</span>` : "";
+    const lsHtml = ls ? `<span style="font-size:11px;color:#aaa;margin-left:6px;">| 거래 ${fmt(ls)}G</span>` : "";
     return `<div class="item-row">${itemImg(item)}<span>${item.replace("탈틴 농장 ","")}</span><strong>${fmt(p)} G</strong>${lsHtml}</div>`;
   }).join("");
 
@@ -269,7 +269,7 @@ function buildPage(prices, lastSold, fetchedAt) {
     const p = prices[item] || 0;
     const ls = lastSold[item] || 0;
     const safeItemName = item.replace(/[^a-zA-Z0-9가-힣]/g, "_");
-    const lsHtml = ls ? `<span style="font-size:11px;color:#aaa;margin-left:6px;">거래 ${fmt(ls)}G</span>` : "";
+    const lsHtml = ls ? `<span style="font-size:11px;color:#aaa;margin-left:6px;">| 거래 ${fmt(ls)}G</span>` : "";
     return `<div class="item-row" id="spec_row_${safeItemName}">${itemImg(item)}<span>${item}</span><strong id="spec_price_${safeItemName}">${p ? fmt(p)+" G" : "매물없음"}</strong>${lsHtml}</div>`;
   }).join("");
 
