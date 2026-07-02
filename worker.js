@@ -691,17 +691,15 @@ async function loadGraph() {
     emptyEl.style.display = "block"; canvas.style.display = "none"; return;
   }
 
-  // 공통 시간 라벨 (가장 많은 데이터 기준)
-  const longest = allData.reduce((a, b) => a.rows.length > b.rows.length ? a : b);
-  const labels = longest.rows.map(r => {
-    const d = new Date(r.recorded_at + "Z");
-    return d.toLocaleString("ko-KR", { month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", timeZone:"Asia/Seoul" });
-  });
+  const fmtDateTime = (ms) => new Date(ms).toLocaleString("ko-KR", { month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", timeZone:"Asia/Seoul" });
 
-  // 각 아이템 데이터셋 생성
+  // 각 아이템 데이터셋 생성 — {x: 실제 시각(ms), y: 가격} 좌표로 만들어서
+  // 아이템마다 데이터 개수/시각이 달라도 항상 정확한 실제 시간 위치에 표시되게 함
+  // (예전엔 "가장 데이터 많은 아이템" 하나의 순번을 공통 x축으로 삼아서, 그 아이템 데이터가
+  //  중간에 끊기면 다른 아이템에 최신 데이터가 있어도 그래프가 통째로 잘려보이는 문제가 있었음)
   const datasets = allData.filter(d => d.rows.length > 0).map((d, i) => ({
     label: d.item.replace("탈틴 농장 ",""),
-    data: d.rows.map(r => r.price),
+    data: d.rows.map(r => ({ x: new Date(r.recorded_at + "Z").getTime(), y: r.price })),
     borderColor: CHART_COLORS[i % CHART_COLORS.length],
     backgroundColor: "transparent",
     borderWidth: 2,
@@ -721,24 +719,26 @@ async function loadGraph() {
   if (chartInstance) chartInstance.destroy();
   chartInstance = new Chart(canvas, {
     type: "line",
-    data: { labels, datasets },
+    data: { datasets },
     options: {
       responsive: true,
-      interaction: { mode: "index", intersect: false },
+      parsing: false,
+      interaction: { mode: "x", intersect: false },
       plugins: {
         legend: { labels: { color:"#e0e0e0", boxWidth:12 } },
         tooltip: {
           enabled: false,
           external(context) {
-            const { chart, tooltip } = context;
+            const { tooltip } = context;
             if (tooltip.opacity === 0) return;
-            const idx = tooltip.dataPoints[0]?.dataIndex;
-            const title = tooltip.title[0] || "";
-            const lines = chart.data.datasets.map(ds => {
-              const val = ds.data[idx];
+            const points = tooltip.dataPoints || [];
+            if (!points.length) return;
+            const title = fmtDateTime(points[0].parsed.x);
+            const lines = points.map(p => {
+              const val = p.parsed.y;
               if (val === undefined || val === null) return "";
               return \`<div style="display:flex;justify-content:space-between;gap:16px;padding:2px 0;">
-                <span style="color:\${ds.borderColor}">● \${ds.label}</span>
+                <span style="color:\${p.dataset.borderColor}">● \${p.dataset.label}</span>
                 <span style="font-weight:bold;">\${val.toLocaleString("ko-KR")} G</span>
               </div>\`;
             }).filter(Boolean).join("");
@@ -748,7 +748,7 @@ async function loadGraph() {
         }
       },
       scales: {
-        x: { ticks: { color:"#aaa", maxTicksLimit:12 }, grid: { color:"rgba(255,255,255,0.05)" } },
+        x: { type: "linear", ticks: { color:"#aaa", maxTicksLimit:12, callback: fmtDateTime }, grid: { color:"rgba(255,255,255,0.05)" } },
         y: { ticks: { color:"#aaa", callback: v => v.toLocaleString("ko-KR")+" G" }, grid: { color:"rgba(255,255,255,0.05)" } }
       }
     }
