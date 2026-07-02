@@ -359,16 +359,9 @@ tr:hover td { background: rgba(255,255,255,0.03); }
 .ref-section h4 { color: var(--accent); margin-bottom: 8px; font-size: 14px; }
 .ref-section p { color: var(--text2); font-size: 13px; margin-bottom: 2px; }
 .ref-section strong { color: #fff; }
-.cart-form { display: flex; gap: 8px; margin-bottom: 12px; align-items: flex-end; }
-.cart-form input[type=text] { flex: 1; background: #3f404d; border: 1px solid var(--border); color: #fff; padding: 8px 12px; border-radius: 6px; font-size: 13px; }
-.cart-form input[type=number] { width: 80px; background: #3f404d; border: 1px solid var(--border); color: #fff; padding: 8px 12px; border-radius: 6px; font-size: 13px; }
 .btn-primary { background: var(--accent); color: #000; border: none; padding: 8px 18px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; }
 .btn-primary:hover { opacity: 0.85; }
 .btn-secondary { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
-.cart-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); }
-.cart-item span { flex: 1; }
-.del-btn { background: #4a1a1a; color: var(--red); border: none; padding: 2px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
-#cart-result { margin-top: 12px; }
 .metric-box { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; display: inline-block; margin-right: 10px; margin-bottom: 8px; }
 .metric-box .m-label { font-size: 11px; color: var(--text2); }
 .metric-box .m-val { font-size: 22px; font-weight: bold; color: var(--accent); }
@@ -654,39 +647,6 @@ async function refreshSpecialClient() {
     } else { status.innerText = "❌ 서버 오류"; }
   } catch { status.innerText = "❌ 네트워크 오류"; }
   finally { btn.disabled = false; btn.innerText = "⚡ 특화채집 시세만 새로고침"; }
-}
-
-// ── 장바구니 ──
-let cart = JSON.parse(localStorage.getItem("mabi_cart") || "[]");
-function saveCart() { localStorage.setItem("mabi_cart", JSON.stringify(cart)); }
-function renderCart() {
-  const el = document.getElementById("cart-list");
-  if (!cart.length) { el.innerHTML = ""; return; }
-  el.innerHTML = cart.map((item, i) =>
-    \`<div class="cart-item"><span>\${item.name} × \${item.cnt}개</span><button class="del-btn" onclick="cartDel(\${i})">삭제</button></div>\`
-  ).join("");
-}
-function cartAdd() {
-  const name = document.getElementById("cart-name").value.trim();
-  const cnt = parseInt(document.getElementById("cart-cnt").value) || 1;
-  if (!name) return;
-  cart.push({ name, cnt }); saveCart(); renderCart();
-  document.getElementById("cart-name").value = "";
-}
-function cartDel(i) { cart.splice(i, 1); saveCart(); renderCart(); }
-function cartClear() { cart = []; saveCart(); renderCart(); document.getElementById("cart-result").innerHTML = ""; }
-async function cartCalc() {
-  if (!cart.length) return;
-  const res = document.getElementById("cart-result");
-  res.innerHTML = "<p style='color:var(--text2)'>조회 중...</p>";
-  const rows = await Promise.all(cart.map(async item => {
-    const p = await fetchPriceClient(item.name);
-    return { name: item.name, cnt: item.cnt, price: p };
-  }));
-  const total = rows.reduce((s, r) => s + r.price * r.cnt, 0);
-  res.innerHTML = \`<div class="metric-box"><div class="m-label">장바구니 총액</div><div class="m-val">\${fmt(total)} G</div></div>
-    <table><thead><tr><th>아이템</th><th class="num">최저가</th><th class="num">수량</th><th class="num">합계</th></tr></thead>
-    <tbody>\${rows.map(r => \`<tr><td>\${r.name}</td><td class="num">\${r.price ? fmt(r.price)+" G":"매물없음"}</td><td class="num">\${r.cnt}개</td><td class="num">\${fmt(r.price*r.cnt)} G</td></tr>\`).join("")}</tbody></table>\`;
 }
 
 // ── 납품 퀘스트 계산기 ──
