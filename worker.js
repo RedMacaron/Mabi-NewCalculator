@@ -858,7 +858,6 @@ async function autoRefreshPrices() {
 setInterval(autoRefreshPrices, 2 * 60 * 1000);
 
 // ── 초기화 ──
-renderCart();
 buildQuestChecks();
 </script>
 </body>
