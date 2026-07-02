@@ -315,8 +315,6 @@ h3 { font-size: 15px; color: var(--accent); margin: 16px 0 8px; }
 .info-bar { display:flex; align-items:center; gap:12px; margin-bottom:12px; font-size:12px; color:var(--text2); flex-wrap:wrap; }
 .refresh-btn { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
 .refresh-btn:hover { background: var(--border); }
-.special-refresh-btn { background: #1f3d37; border: 1px solid var(--accent); color: var(--accent); padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold; }
-.special-refresh-btn:hover { background: var(--accent); color: #000; }
 hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
 .quest-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
 .quest-header { display: grid; grid-template-columns: 3fr 1fr 1.5fr 1.5fr; gap: 12px; padding: 12px 16px; align-items: start; }
@@ -516,10 +514,6 @@ ${questCards}
 
 <!-- 섹션 6: 특화 채집 -->
 <h2>💎 특화 채집 실시간 시세</h2>
-<div class="info-bar">
-  <button class="special-refresh-btn" id="btn-special-refresh" onclick="refreshSpecialClient()">⚡ 특화채집 시세만 새로고침</button>
-  <span id="special-status-text">특화채집은 위 버튼을 누를 때만 실시간 갱신됩니다.</span>
-</div>
 <div class="grid-4">${specialHtml}</div>
 
 <hr>
@@ -625,29 +619,6 @@ function updateSim(simBody) {
   if (profitEl) { profitEl.textContent = label; profitEl.style.color = color; }
 }
 document.querySelectorAll(".sim-body").forEach(updateSim);
-
-// ── 특화 채집 새로고침 ──
-async function refreshSpecialClient() {
-  const btn = document.getElementById("btn-special-refresh");
-  const status = document.getElementById("special-status-text");
-  btn.disabled = true;
-  btn.innerText = "🔄 수집 중...";
-  status.innerText = "특화 채집 19종 시세 수집 중...";
-  try {
-    const res = await fetch("/api/refresh-special");
-    if (res.ok) {
-      const newPrices = await res.json();
-      Object.assign(PRICES, newPrices);
-      for (const [item, price] of Object.entries(newPrices)) {
-        const safeId = item.replace(/[^a-zA-Z0-9가-힣]/g, "_");
-        const el = document.getElementById("spec_price_" + safeId);
-        if (el) el.innerText = price ? fmt(price) + " G" : "매물없음";
-      }
-      status.innerText = "✨ 갱신 완료!";
-    } else { status.innerText = "❌ 서버 오류"; }
-  } catch { status.innerText = "❌ 네트워크 오류"; }
-  finally { btn.disabled = false; btn.innerText = "⚡ 특화채집 시세만 새로고침"; }
-}
 
 // ── 납품 퀘스트 계산기 ──
 function safeId(name) { return name.replace(/[^a-zA-Z0-9가-힣]/g, "_"); }
@@ -901,8 +872,10 @@ export default {
         if (!items.length) return new Response(JSON.stringify({}), { headers: { "content-type": "application/json" } });
 
         // 기간별 샘플링 간격 (읽기 행 수 절감)
-        // 3시간/6시간: 매 포인트, 24시간: 5분마다 1개, 3일: 15분마다, 7일: 30분마다, 14일: 1시간마다
-        let interval = 3; // 기본 3분 (Cron 주기)
+        // 기본/가공품은 0분(5분주기), 특화채집은 1분(5분주기)에 기록되어 "분"이 서로 다르므로,
+        // 절대 시각(clock minute) 기준 필터링 대신 아이템별 기록 순번(row_number) 기준으로 N개마다 1개씩 뽑는다.
+        // → 아이템마다 기록되는 시각(offset)이 달라도 항상 고르게 데이터가 나옴.
+        let interval = 3; // 기본: 매 3번째 기록
         if (hours >= 336) interval = 60;
         else if (hours >= 168) interval = 30;
         else if (hours >= 72) interval = 15;
@@ -910,10 +883,16 @@ export default {
 
         const placeholders = items.map(() => "?").join(",");
         const rows = await env.MABI_DB.prepare(
-          `SELECT item_name, recorded_at, price FROM prices
-           WHERE item_name IN (${placeholders})
-             AND recorded_at >= datetime('now', '-${hours} hours')
-             AND CAST(strftime('%M', recorded_at) AS INTEGER) % ${interval} = 0
+          `WITH ranked AS (
+             SELECT item_name, recorded_at, price,
+                    ROW_NUMBER() OVER (PARTITION BY item_name ORDER BY recorded_at ASC) AS rn
+             FROM prices
+             WHERE item_name IN (${placeholders})
+               AND recorded_at >= datetime('now', '-${hours} hours')
+           )
+           SELECT item_name, recorded_at, price
+           FROM ranked
+           WHERE (rn - 1) % ${interval} = 0
            ORDER BY item_name, recorded_at ASC`
         ).bind(...items).all();
 
