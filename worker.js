@@ -690,20 +690,21 @@ async function cartCalc() {
 }
 
 // ── 납품 퀘스트 계산기 ──
+function safeId(name) { return name.replace(/[^a-zA-Z0-9가-힣]/g, "_"); }
 function buildQuestChecks() {
   const grid = document.getElementById("quest-check-grid");
   grid.innerHTML = QUESTS.map(q => {
     const tags = Object.entries(q.materials).map(([k,v]) =>
       \`<span class="mat-tag">\${k.replace("탈틴 농장 ","")} \${v}개</span>\`).join("");
     return \`<div class="quest-check-card">
-      <label><input type="checkbox" id="chk_\${q.name}" checked> \${q.name} (납품 \${q.limit}회)</label>
+      <label><input type="checkbox" id="chk_\${safeId(q.name)}" checked> \${q.name} (납품 \${q.limit}회)</label>
       <div class="mat-tags">\${tags}</div></div>\`;
   }).join("");
 }
-function checkAll(val) { QUESTS.forEach(q => { const el = document.getElementById("chk_"+q.name); if(el) el.checked = val; }); }
+function checkAll(val) { QUESTS.forEach(q => { const el = document.getElementById("chk_"+safeId(q.name)); if(el) el.checked = val; }); }
 async function calcQuests() {
   const multiplier = parseInt(document.getElementById("multiplier").value) || 1;
-  const selected = QUESTS.filter(q => document.getElementById("chk_"+q.name)?.checked);
+  const selected = QUESTS.filter(q => document.getElementById("chk_"+safeId(q.name))?.checked);
   if (!selected.length) { alert("퀘스트를 선택해주세요!"); return; }
   const agg = {};
   selected.forEach(q => Object.entries(q.materials).forEach(([mat, cnt]) => { agg[mat] = (agg[mat]||0) + cnt * q.limit * multiplier; }));
