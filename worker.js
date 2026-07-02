@@ -748,7 +748,7 @@ async function loadGraph() {
         }
       },
       scales: {
-        x: { type: "linear", ticks: { color:"#aaa", maxTicksLimit:12, callback: fmtDateTime }, grid: { color:"rgba(255,255,255,0.05)" } },
+        x: { type: "linear", bounds: "data", ticks: { color:"#aaa", maxTicksLimit:12, callback: fmtDateTime }, grid: { color:"rgba(255,255,255,0.05)" } },
         y: { ticks: { color:"#aaa", callback: v => v.toLocaleString("ko-KR")+" G" }, grid: { color:"rgba(255,255,255,0.05)" } }
       }
     }
