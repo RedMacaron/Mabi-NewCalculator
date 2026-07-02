@@ -874,7 +874,8 @@ export default {
         // 기간별 샘플링 간격 (읽기 행 수 절감)
         // 기본/가공품은 0분(5분주기), 특화채집은 1분(5분주기)에 기록되어 "분"이 서로 다르므로,
         // 절대 시각(clock minute) 기준 필터링 대신 아이템별 기록 순번(row_number) 기준으로 N개마다 1개씩 뽑는다.
-        // → 아이템마다 기록되는 시각(offset)이 달라도 항상 고르게 데이터가 나옴.
+        // 순번은 "최신순(recorded_at DESC)"으로 매겨서, 과거에 쌓인 데이터가 아무리 많아도
+        // 오늘/최근 데이터가 나눗셈에서 잘려나가지 않고 항상 포함되도록 한다.
         let interval = 3; // 기본: 매 3번째 기록
         if (hours >= 336) interval = 60;
         else if (hours >= 168) interval = 30;
@@ -885,7 +886,7 @@ export default {
         const rows = await env.MABI_DB.prepare(
           `WITH ranked AS (
              SELECT item_name, recorded_at, price,
-                    ROW_NUMBER() OVER (PARTITION BY item_name ORDER BY recorded_at ASC) AS rn
+                    ROW_NUMBER() OVER (PARTITION BY item_name ORDER BY recorded_at DESC) AS rn
              FROM prices
              WHERE item_name IN (${placeholders})
                AND recorded_at >= datetime('now', '-${hours} hours')
