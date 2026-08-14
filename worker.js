@@ -489,8 +489,8 @@ ${questCards}
       <p>탈틴 농장 재스민 향수 <strong>2개</strong></p><p>탈틴 농장 장식용 크리스탈 검 <strong>2개</strong></p>
       <p>탈틴 농장 블랙베리 주스 <strong>3개</strong></p><p>탈틴 농장 방수 원단 <strong>3개</strong></p>
       <p>탈틴 농장 퓨어 블러썸 머리핀 <strong>3개</strong></p>
-      <p>희귀 버섯 볶음 박스 <strong>2개</strong></p><p>백연판 <strong>2개</strong></p>
-      <p>월광 여울 이삭빵 박스 <strong>2개</strong></p><p>적철판 <strong>2개</strong></p>
+      <p>희귀 버섯 볶음 박스 <strong>2개</strong></p><p>월광 여울 이삭빵 박스 <strong>2개</strong></p>
+      <p>백연판 <strong>2개</strong></p><p>적철판 <strong>2개</strong></p>
     </div>
   </div>
 </div>
