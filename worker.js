@@ -5,14 +5,14 @@
 
 // ── 데이터 정의 ────────────────────────────────────────────
 const SHOPPING_LIST = {
-  "탈틴 농장 강화 섬유": 2,
-  "탈틴 농장 황혼의 류트": 2,
-  "탈틴 농장 붉은 배 잼": 3,
-  "탈틴 농장 자색 원단": 3,
-  "탈틴 농장 레드문 귀걸이": 3,
-  "월광 여울 이삭빵 박스": 2,
-  "산딸기 크림 소스 박스": 2,
+  "탈틴 농장 재스민 향수": 2,
+  "탈틴 농장 장식용 크리스탈 검": 2,
+  "탈틴 농장 블랙베리 주스": 3,
+  "탈틴 농장 방수 원단": 3,
+  "탈틴 농장 퓨어 블러썸 머리핀": 3,
   "희귀 버섯 볶음 박스": 2,
+  "월광 여울 이삭빵 박스": 2,
+  "백연판": 2,
   "적철판": 2,
 };
 
@@ -88,7 +88,7 @@ const SPECIAL_ITEMS = [
 ];
 
 // SHOPPING_LIST 품목 중 CATEGORIES/SPECIAL_ITEMS에 없는 것들 (cron에서 별도로 시세 추적)
-const SHOPPING_EXTRA_ITEMS = ["월광 여울 이삭빵 박스", "희귀 버섯 볶음 박스", "적철판"];
+const SHOPPING_EXTRA_ITEMS = ["월광 여울 이삭빵 박스", "희귀 버섯 볶음 박스", "적철판", "백연판"];
 
 // ── API 헬퍼 ───────────────────────────────────────────────
 async function fetchPrice(itemName, apiKey) {
@@ -451,9 +451,9 @@ ${questCards}
       <p>반짝이 종이 <strong>35개</strong></p><p>마법의 깃털펜 <strong>15개</strong></p>
       <p>조화의 코스모스 퍼퓸 <strong>6개</strong></p><p>펫 놀이세트 <strong>3개</strong></p><p>인조 잔디 <strong>7개</strong></p>
       <br><p style="color:var(--accent);font-size:12px;">[희귀 재료]</p>
-      <p>탈틴 농장 강화 섬유 <strong>2개</strong></p><p>탈틴 농장 황혼의 류트 <strong>2개</strong></p>
-      <p>탈틴 농장 붉은 배 잼 <strong>3개</strong></p><p>탈틴 농장 자색 원단 <strong>3개</strong></p>
-      <p>탈틴 농장 레드문 귀걸이 <strong>3개</strong></p>
+      <p>탈틴 농장 재스민 향수 <strong>2개</strong></p><p>탈틴 농장 장식용 크리스탈 검 <strong>2개</strong></p>
+      <p>탈틴 농장 블랙베리 주스 <strong>3개</strong></p><p>탈틴 농장 방수 원단 <strong>3개</strong></p>
+      <p>탈틴 농장 퓨어 블러썸 머리핀 <strong>3개</strong></p>
     </div>
   </div>
 </div>
@@ -486,11 +486,11 @@ ${questCards}
       <p>반짝이 종이 <strong>35개</strong></p><p>마법의 깃털펜 <strong>15개</strong></p>
       <p>조화의 코스모스 퍼퓸 <strong>6개</strong></p><p>펫 놀이세트 <strong>3개</strong></p>
       <br><p style="color:var(--accent);font-size:12px;">[희귀 재료]</p>
-      <p>탈틴 농장 강화 섬유 <strong>2개</strong></p><p>탈틴 농장 황혼의 류트 <strong>2개</strong></p>
-      <p>탈틴 농장 붉은 배 잼 <strong>3개</strong></p><p>탈틴 농장 자색 원단 <strong>3개</strong></p>
-      <p>탈틴 농장 레드문 귀걸이 <strong>3개</strong></p>
-      <p>월광 여울 이삭빵 박스 <strong>2개</strong></p><p>산딸기 크림 소스 박스 <strong>2개</strong></p>
-      <p>희귀 버섯 볶음 박스 <strong>2개</strong></p><p>적철판 <strong>2개</strong></p>
+      <p>탈틴 농장 재스민 향수 <strong>2개</strong></p><p>탈틴 농장 장식용 크리스탈 검 <strong>2개</strong></p>
+      <p>탈틴 농장 블랙베리 주스 <strong>3개</strong></p><p>탈틴 농장 방수 원단 <strong>3개</strong></p>
+      <p>탈틴 농장 퓨어 블러썸 머리핀 <strong>3개</strong></p>
+      <p>희귀 버섯 볶음 박스 <strong>2개</strong></p><p>백연판 <strong>2개</strong></p>
+      <p>월광 여울 이삭빵 박스 <strong>2개</strong></p><p>적철판 <strong>2개</strong></p>
     </div>
   </div>
 </div>
@@ -918,10 +918,10 @@ export default {
   },
 
   // ── Cron Trigger: 1분마다 실행, 5분 순환 ──
-  // 0분: 현재가 43개 (기본생산품21 + 가공품19 + 물교전용3) → D1 + KV 머지
+  // 0분: 현재가 44개 (기본생산품21 + 가공품19 + 물교전용4) → D1 + KV 머지
   // 1분: 현재가 20개 (가공품1 + 특화19) + 거래내역 21개 (기본생산품) → D1 + KV 머지
   // 2분: 거래내역 39개 (가공품20 + 특화19) → D1 + KV 머지
-  // 3분, 4분: 휴식 (최대 서브리퀘스트 43회 → 50회 제한 내)
+  // 3분, 4분: 휴식 (최대 서브리퀘스트 44회 → 50회 제한 내)
   async scheduled(event, env) {
     const apiKey = env.NEXON_API_KEY;
     if (!apiKey || !env.MABI_DB) return;
@@ -943,7 +943,7 @@ export default {
 
     let tasks = [];
     if (slot === 0) {
-      // 현재가: 기본생산품21 + 가공품19 + 물교전용3 = 43개
+      // 현재가: 기본생산품21 + 가공품19 + 물교전용4 = 44개
       tasks = [
         ...basicItems.map(item => ({ item, type: "price" })),
         ...potItems.slice(0, 19).map(item => ({ item, type: "price" })),
