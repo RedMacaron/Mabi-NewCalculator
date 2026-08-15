@@ -204,24 +204,28 @@ function buildPage(prices, lastSold, fetchedAt) {
     const missingHtml = missing.length ? `<div class="warn">⚠️ 매물없음: ${missing.map(m=>m.replace("탈틴 농장 ","")).join(", ")}</div>` : "";
 
     const safeId = q.name.replace(/[^a-zA-Z0-9가-힣]/g, "_");
+    const countOpts = (namePrefix) => Array.from({ length: range[1] - range[0] + 1 }, (_, i) => range[0] + i)
+      .map(n => `<label class="rbtn"><input type="radio" name="${namePrefix}_${safeId}" value="${n}" ${n===range[0]?"checked":""}> ${n}개</label>`).join("");
 
-    // 열쇠 섹션
+    // 열쇠 섹션 — 범위가 고정(1개 등)이면 뱃지, 범위가 있으면(예: 1~2개) 선택 가능
+    const keyCountHtml = (keyOnly || isFixed) ? `<span class="fixed-badge">1개 고정</span>` : countOpts("key");
     const keySection = keyOnly || (!upgOnly)
       ? `<div class="sim-col">
           <div class="sim-label">🗝️ 열쇠 개수</div>
-          <div class="rbtn-group"><span class="fixed-badge">1개 고정</span></div>
+          <div class="rbtn-group">${keyCountHtml}</div>
         </div>`
       : "";
 
     // 업그레이드 템 섹션
     const upgTypeOpts = Object.entries(UPGRADE_ITEMS)
       .map(([k,v]) => `<label class="rbtn"><input type="radio" name="upg_type_${safeId}" value="${v}" ${k==="벽돌"?"checked":""}> ${k}(${v/10000}만G)</label>`).join("");
+    const upgCountHtml = (upgOnly || isFixed) ? `<span class="fixed-badge">1개 고정</span>` : countOpts("upg_cnt");
     const upgSection = upgOnly || (!keyOnly)
       ? `<div class="sim-col wide">
           <div class="sim-label">🧱 업그레이드 템 종류</div>
           <div class="rbtn-group">${upgTypeOpts}</div>
           <div class="sim-label" style="margin-top:8px">🔢 업그레이드 템 개수</div>
-          <div class="rbtn-group"><span class="fixed-badge">1개 고정</span></div>
+          <div class="rbtn-group">${upgCountHtml}</div>
         </div>`
       : "";
 
@@ -489,8 +493,8 @@ ${questCards}
       <p>탈틴 농장 재스민 향수 <strong>2개</strong></p><p>탈틴 농장 장식용 크리스탈 검 <strong>2개</strong></p>
       <p>탈틴 농장 블랙베리 주스 <strong>3개</strong></p><p>탈틴 농장 방수 원단 <strong>3개</strong></p>
       <p>탈틴 농장 퓨어 블러썸 머리핀 <strong>3개</strong></p>
-      <p>희귀 버섯 볶음 박스 <strong>2개</strong></p><p>월광 여울 이삭빵 박스 <strong>2개</strong></p>
-      <p>백연판 <strong>2개</strong></p><p>적철판 <strong>2개</strong></p>
+      <p>희귀 버섯 볶음 박스 <strong>2개</strong></p><p>백연판 <strong>2개</strong></p>
+      <p>월광 여울 이삭빵 박스 <strong>2개</strong></p><p>적철판 <strong>2개</strong></p>
     </div>
   </div>
 </div>
