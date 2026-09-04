@@ -5,15 +5,15 @@
 
 // ── 데이터 정의 ────────────────────────────────────────────
 const SHOPPING_LIST = {
-  "탈틴 농장 재스민 향수": 2,
-  "탈틴 농장 장식용 크리스탈 검": 2,
-  "탈틴 농장 블랙베리 주스": 3,
-  "탈틴 농장 방수 원단": 3,
-  "탈틴 농장 퓨어 블러썸 머리핀": 3,
+  "탈틴 농장 붉은 배 잼": 3,
+  "탈틴 농장 자색 원단": 3,
+  "탈틴 농장 레드문 귀걸이": 3,
+  "탈틴 농장 새벽의 활": 2,
+  "탈틴 농장 미드나잇 펄 페인트": 2,
   "희귀 버섯 볶음 박스": 2,
-  "월광 여울 이삭빵 박스": 2,
-  "백연판": 2,
   "적철판": 2,
+  "루멘 시럽": 2,
+  "남동판": 2,
 };
 
 const CATEGORIES = {
@@ -88,7 +88,7 @@ const SPECIAL_ITEMS = [
 ];
 
 // SHOPPING_LIST 품목 중 CATEGORIES/SPECIAL_ITEMS에 없는 것들 (cron에서 별도로 시세 추적)
-const SHOPPING_EXTRA_ITEMS = ["월광 여울 이삭빵 박스", "희귀 버섯 볶음 박스", "적철판", "백연판"];
+const SHOPPING_EXTRA_ITEMS = ["희귀 버섯 볶음 박스", "적철판", "루멘 시럽", "남동판"];
 
 // ── API 헬퍼 ───────────────────────────────────────────────
 async function fetchPrice(itemName, apiKey) {
@@ -455,9 +455,9 @@ ${questCards}
       <p>반짝이 종이 <strong>35개</strong></p><p>마법의 깃털펜 <strong>15개</strong></p>
       <p>조화의 코스모스 퍼퓸 <strong>6개</strong></p><p>펫 놀이세트 <strong>3개</strong></p><p>인조 잔디 <strong>7개</strong></p>
       <br><p style="color:var(--accent);font-size:12px;">[희귀 재료]</p>
-      <p>탈틴 농장 재스민 향수 <strong>2개</strong></p><p>탈틴 농장 장식용 크리스탈 검 <strong>2개</strong></p>
-      <p>탈틴 농장 블랙베리 주스 <strong>3개</strong></p><p>탈틴 농장 방수 원단 <strong>3개</strong></p>
-      <p>탈틴 농장 퓨어 블러썸 머리핀 <strong>3개</strong></p>
+      <p>탈틴 농장 붉은 배 잼 <strong>3개</strong></p><p>탈틴 농장 자색 원단 <strong>3개</strong></p>
+      <p>탈틴 농장 레드문 귀걸이 <strong>3개</strong></p><p>탈틴 농장 새벽의 활 <strong>2개</strong></p>
+      <p>탈틴 농장 미드나잇 펄 페인트 <strong>2개</strong></p>
     </div>
   </div>
 </div>
@@ -490,11 +490,11 @@ ${questCards}
       <p>반짝이 종이 <strong>35개</strong></p><p>마법의 깃털펜 <strong>15개</strong></p>
       <p>조화의 코스모스 퍼퓸 <strong>6개</strong></p><p>펫 놀이세트 <strong>3개</strong></p>
       <br><p style="color:var(--accent);font-size:12px;">[희귀 재료]</p>
-      <p>탈틴 농장 재스민 향수 <strong>2개</strong></p><p>탈틴 농장 장식용 크리스탈 검 <strong>2개</strong></p>
-      <p>탈틴 농장 블랙베리 주스 <strong>3개</strong></p><p>탈틴 농장 방수 원단 <strong>3개</strong></p>
-      <p>탈틴 농장 퓨어 블러썸 머리핀 <strong>3개</strong></p>
-      <p>희귀 버섯 볶음 박스 <strong>2개</strong></p><p>백연판 <strong>2개</strong></p>
-      <p>월광 여울 이삭빵 박스 <strong>2개</strong></p><p>적철판 <strong>2개</strong></p>
+      <p>탈틴 농장 붉은 배 잼 <strong>3개</strong></p><p>탈틴 농장 자색 원단 <strong>3개</strong></p>
+      <p>탈틴 농장 레드문 귀걸이 <strong>3개</strong></p><p>탈틴 농장 새벽의 활 <strong>2개</strong></p>
+      <p>탈틴 농장 미드나잇 펄 페인트 <strong>2개</strong></p>
+      <p>희귀 버섯 볶음 박스 <strong>2개</strong></p><p>적철판 <strong>2개</strong></p>
+      <p>루멘 시럽 <strong>2개</strong></p><p>남동판 <strong>2개</strong></p>
     </div>
   </div>
 </div>
